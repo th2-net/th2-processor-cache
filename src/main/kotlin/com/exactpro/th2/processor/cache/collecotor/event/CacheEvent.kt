@@ -16,20 +16,50 @@
 
 package com.exactpro.th2.processor.cache.collecotor.event
 
-import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.cache.common.event.Event
+import com.exactpro.th2.common.grpc.EventStatus
+import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
-import com.fasterxml.jackson.annotation.JsonFormat
 
-//FIXME: Vertex id should be generated base on the event id
-internal data class CacheEvent(
-    val tmp: String //FIXME: use class from th2-cache-common project
-) {
-    companion object {
-        internal fun GrpcEvent.toCacheEvent(): CacheEvent {
-            TODO()
+internal fun GrpcEvent.toCacheEvent(): Event {
+
+    return Event(
+        "event",
+        id.toString(),
+        null,   // TODO: do we need batch id ?
+        false,  // TODO: do we need batch id ?
+        name,
+        type,
+        endTimestamp.toInstant(),
+        id.startTimestamp.toInstant(),
+
+        if (this.parentId != null) {
+            this.parentId.toString()
+        } else {
+            null
+        },
+
+        isSuccess(),
+
+        if (attachedMessageIdsList != null) {
+            attachedMessageIdsList.map { messageId -> messageId.toString() }.toSet()
+        } else {
+            null
+        },
+
+        if (this.body != null) {
+            this.body.toStringUtf8()
+        } else {
+            null
         }
+    )
+}
 
-        internal val EventID.cacheId: String
-            get() = TODO()
+
+internal fun GrpcEvent.isSuccess(): Boolean {
+    return when (status) {
+        EventStatus.SUCCESS -> true
+        EventStatus.FAILED -> false
+        else -> throw IllegalArgumentException("Unknown event status '$status'")
     }
 }

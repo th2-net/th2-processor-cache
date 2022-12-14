@@ -16,17 +16,9 @@
 
 package com.exactpro.th2.processor.cache.collecotor
 
+import com.exactpro.th2.cache.common.ArangoCredentials
 import com.exactpro.th2.processor.api.IProcessorSettings
 
 data class Settings(
-    val arangoHost: String = "localhost",
-    val arangoPort: Int = 8529,
-    val arangoUser: String = "",
-    val arangoPassword: String = "",
-    val arangoDbName: String = "",
-
-    val eventHierarchyGraph: String = "Event_hierarchy_graph",
-    val edgeCollection: String? = "Edges", //TODO: maybe it is not nullable ?
-    val messageCollection: String? = "Messages", //TODO: maybe it is not nullable ?
-    val eventCollection: String? = "Events", //TODO: maybe it is not nullable ?
+    val arangoCredentials: ArangoCredentials
 ): IProcessorSettings

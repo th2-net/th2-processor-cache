@@ -16,31 +16,28 @@
 
 package com.exactpro.th2.processor.cache.collecotor
 
-import com.arangodb.ArangoDB
 import com.arangodb.ArangoDatabase
 import com.arangodb.ArangoEdgeCollection
 import com.arangodb.ArangoVertexCollection
-import com.arangodb.DbName
 import com.arangodb.entity.BaseEdgeDocument
 import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
 import com.arangodb.model.CollectionCreateOptions
-import com.exactpro.th2.common.event.Event
+import com.exactpro.th2.cache.common.Arango
+import com.exactpro.th2.cache.common.event.Event
+import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
-import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.processor.api.IProcessor
-import com.exactpro.th2.processor.cache.collecotor.event.CacheEvent.Companion.cacheId
-import com.exactpro.th2.processor.cache.collecotor.event.CacheEvent.Companion.toCacheEvent
-import com.exactpro.th2.processor.cache.collecotor.message.CacheMessage.Companion.cacheId
+import com.exactpro.th2.processor.cache.collecotor.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collecotor.message.CacheMessage.Companion.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import mu.KotlinLogging
 
 typealias GrpcEvent = com.exactpro.th2.common.grpc.Event
 typealias GrpcMessage = Message
-typealias EventBuilder = Event
+typealias EventBuilder = com.exactpro.th2.common.event.Event
 
 class Processor(
     private val eventBatcher: EventBatcher,
@@ -48,53 +45,49 @@ class Processor(
     settings: Settings,
 ) : IProcessor {
 
-    private val eventHierarchyGraph = settings.eventHierarchyGraph
-    private val edgeCollection = settings.edgeCollection
-    private val messageCollection = settings.messageCollection
-    private val eventCollection = settings.eventCollection
 
-    private val arangoDB: ArangoDB = settings.createArangoDB()
-    private val arangoDatabase: ArangoDatabase = arangoDB.db(DbName.of(settings.arangoDbName))
-    private val messageVertexCollection: ArangoVertexCollection
+    private val arango: Arango = Arango(settings.arangoCredentials)
+    private val database: ArangoDatabase = arango.getDatabase()
+    private val rawMessageVertexCollection: ArangoVertexCollection
+    private val parsedMessageVertexCollection: ArangoVertexCollection
     private val eventVertexCollection: ArangoVertexCollection
     private val edgeVertexCollection: ArangoEdgeCollection
 
     init {
-        arangoDatabase.createDB(processorEventId)
+        createDB(processorEventId)
 
-        eventCollection?.let {
-            arangoDatabase.recreateCollection(processorEventId, eventCollection, CollectionType.DOCUMENT)
-        }
-        messageCollection?.let {
-            arangoDatabase.recreateCollection(processorEventId, messageCollection, CollectionType.DOCUMENT)
-        }
-        edgeCollection?.let {
-            arangoDatabase.recreateCollection(processorEventId, edgeCollection, CollectionType.EDGES)
-        }
+        recreateCollection(processorEventId, Arango.EVENT_COLLECTION, CollectionType.DOCUMENT)
+        recreateCollection(processorEventId, Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
+        recreateCollection(processorEventId, Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
+        recreateCollection(processorEventId, Arango.EVENT_EDGES, CollectionType.EDGES)
 
         val edgeDefinition: EdgeDefinition = EdgeDefinition()
-            .collection(edgeCollection)
-            .from(eventCollection)
-            .to(eventCollection)
+            .collection(Arango.EVENT_EDGES)
+            .from(Arango.EVENT_EDGES)
+            .to(Arango.EVENT_EDGES)
 
-        arangoDatabase.createGraph(eventHierarchyGraph, mutableListOf(edgeDefinition), null)
-        with(arangoDatabase.graph(eventHierarchyGraph)) {
-            edgeVertexCollection = edgeCollection(edgeCollection).apply {
+        database.createGraph(Arango.EVENTS_GRAPH, mutableListOf(edgeDefinition), null)
+        with(database.graph(Arango.EVENTS_GRAPH)) {
+            edgeVertexCollection = edgeCollection(Arango.EVENT_EDGES).apply {
                 insertEdge(edgeDefinition)
             }
-            eventVertexCollection = vertexCollection(eventCollection)
-            messageVertexCollection = vertexCollection(messageCollection)
+            eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
+            rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
+            parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
         }
     }
 
-    override fun handle(intervalEventId: EventID, event: GrpcEvent) {
+    override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
+        var event = grpcEvent.toCacheEvent()
         storeDocument(event)
-        if (event.hasParentId()) {
-            storeEdge(event.id, event.parentId)
+        if (grpcEvent.hasParentId()) {
+            storeEdge(event)
         }
-        event.attachedMessageIdsList.forEach { messageId ->
-            // FIXME: maybe store as a batch
-            storeEdge(event.id, messageId)
+        if (event.attachedMessageIds !=null) {
+            event.attachedMessageIds?.forEach { messageId ->
+                // FIXME: maybe store as a batch
+                storeEdge(event, messageId)
+            }
         }
     }
 
@@ -102,38 +95,38 @@ class Processor(
         storeDocument(message)
     }
 
-    private fun storeDocument(event: GrpcEvent) {
-        eventVertexCollection.insertVertex(event.toCacheEvent())
+    private fun storeDocument(event: Event) {
+        eventVertexCollection.insertVertex(event)
     }
 
     private fun storeDocument(message: GrpcMessage) {
-        messageVertexCollection.insertVertex(message.toCacheMessage())
+        rawMessageVertexCollection.insertVertex(message.toCacheMessage())
     }
 
-    private fun storeEdge(id: EventID, parentId: EventID) {
+    private fun storeEdge(event: Event) {
         edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
-            from = parentId.cacheId
-            to = id.cacheId
+            from = event.parentEventId
+            to = event.eventId
         })
     }
 
-    private fun storeEdge(id: EventID, messageId: MessageID) {
+    private fun storeEdge(event: Event, messageId: String) {
         // FIXME: I'm not sure about using the same edge
         edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
-            from = id.cacheId
-            to = messageId.cacheId
+            from = event.eventId
+            to = messageId
         })
     }
 
-    private fun ArangoDatabase.createDB(
+    private fun createDB(
         reportEventId: EventID,
     ) {
         runCatching {
-            if (!exists()) {
-                create()
+            if (!database.exists()) {
+                database.create()
                 eventBatcher.onEvent(
                     EventBuilder.start()
-                        .name("Created ${dbName()} database")
+                        .name("Created ${database.dbName()} database")
                         .type(EVENT_TYPE_INIT_DATABASE)
                         .toProto(reportEventId)
                         .log(K_LOGGER)
@@ -142,9 +135,9 @@ class Processor(
         }.onFailure { e ->
             eventBatcher.onEvent(
                 EventBuilder.start()
-                    .name("Failed to create ${dbName()} database")
+                    .name("Failed to create ${database.dbName()} database")
                     .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Event.Status.FAILED)
+                    .status(Status.FAILED)
                     .exception(e, true)
                     .toProto(reportEventId)
                     .log(K_LOGGER)
@@ -153,22 +146,22 @@ class Processor(
         }.getOrThrow()
     }
 
-    private fun ArangoDatabase.recreateCollection(
+    private fun recreateCollection(
         reportEventId: EventID,
         name: String,
         type: CollectionType
     ) {
         runCatching {
-            if (collection(name).exists()) {
-                collection(name).drop()
+            if (database.collection(name).exists()) {
+                database.collection(name).drop()
             }
-            createCollection(name, CollectionCreateOptions().type(type))
+            database.createCollection(name, CollectionCreateOptions().type(type))
         }.onFailure { e ->
             eventBatcher.onEvent(
                 EventBuilder.start()
                     .name("Failed to recreate $name:$type collection")
                     .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Event.Status.FAILED)
+                    .status(Status.FAILED)
                     .exception(e, true)
                     .toProto(reportEventId)
                     .log(K_LOGGER)
@@ -188,13 +181,5 @@ class Processor(
     companion object {
         private val K_LOGGER = KotlinLogging.logger {}
         private const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
-
-        private fun Settings.createArangoDB() = ArangoDB.Builder()
-                .host(arangoHost, arangoPort)
-                .user(arangoUser)
-                .password(arangoPassword)
-                .build()
-
     }
-
 }
