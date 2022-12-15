@@ -63,14 +63,13 @@ class Processor(
 
         val edgeDefinition: EdgeDefinition = EdgeDefinition()
             .collection(Arango.EVENT_EDGES)
-            .from(Arango.EVENT_EDGES)
-            .to(Arango.EVENT_EDGES)
+            .from(Arango.EVENT_COLLECTION)
+            .to(Arango.EVENT_COLLECTION)
 
-        database.createGraph(Arango.EVENTS_GRAPH, mutableListOf(edgeDefinition), null)
-        with(database.graph(Arango.EVENTS_GRAPH)) {
-            edgeVertexCollection = edgeCollection(Arango.EVENT_EDGES).apply {
-                insertEdge(edgeDefinition)
-            }
+        recreateGraph(edgeDefinition)
+
+        with(database.graph(Arango.EVENT_GRAPH)) {
+            edgeVertexCollection = edgeCollection(Arango.EVENT_EDGES)
             eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
             rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
             parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
@@ -144,6 +143,13 @@ class Processor(
             )
             throw e
         }.getOrThrow()
+    }
+
+    private fun recreateGraph(edgeDefinition: EdgeDefinition) {
+        if (database.graph(Arango.EVENT_GRAPH).exists()) {
+            database.graph(Arango.EVENT_GRAPH).drop()
+        }
+        database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
     }
 
     private fun recreateCollection(

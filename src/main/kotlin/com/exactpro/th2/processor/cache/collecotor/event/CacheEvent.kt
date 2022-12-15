@@ -24,7 +24,6 @@ import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
 internal fun GrpcEvent.toCacheEvent(): Event {
 
     return Event(
-        "event",
         id.toString(),
         null,   // TODO: do we need batch id ?
         false,  // TODO: do we need batch id ?
