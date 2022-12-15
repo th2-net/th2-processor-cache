@@ -35,7 +35,7 @@ dependencies {
     implementation 'com.exactpro.th2:grpc-common:4.0.0-th2-2150-books-pages-1606698156-SNAPSHOT'
     implementation 'com.exactpro.th2:common:4.0.0-TH2-4262-reduce-load-book-and-page-3574992387-SNAPSHOT'
     implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3572891451-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3637548565-8002d60-SNAPSHOT'
+    implementation 'com.exactpro.th2:processor-core:0.0.1-TH2-4262-reduce-load-book-and-page-3704693968-d880090-SNAPSHOT'
 
     implementation group: 'net.jpountz.lz4', name: 'lz4', version: '1.3.0'
     implementation 'io.github.microutils:kotlin-logging:3.0.4'
