@@ -78,6 +78,12 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         var event = grpcEvent.toCacheEvent()
+        with (grpcEvent) {
+            K_LOGGER.info { id.bookName }
+            K_LOGGER.info { id.scope }
+            K_LOGGER.info { id.id }
+            K_LOGGER.info { id.startTimestamp.toString() }
+        }
         K_LOGGER.info ( event.eventId )
         storeDocument(event)
         if (grpcEvent.hasParentId()) {
