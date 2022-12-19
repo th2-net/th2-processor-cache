@@ -57,7 +57,7 @@ internal fun GrpcEvent.toCacheEvent(): Event {
     )
 }
 
-internal fun GrpcEvent.format(eventId: EventID): String = eventId.logId
+internal fun GrpcEvent.format(eventId: EventID): String = eventId.id
 
 internal fun GrpcEvent.isSuccess(): Boolean {
     return when (status) {
