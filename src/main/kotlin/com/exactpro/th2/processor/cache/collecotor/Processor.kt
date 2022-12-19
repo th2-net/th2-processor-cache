@@ -78,16 +78,17 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         var event = grpcEvent.toCacheEvent()
+        K_LOGGER.info ( "persisting ${event}" )
         storeDocument(event)
         if (grpcEvent.hasParentId()) {
             storeEdge(event)
         }
-        if (event.attachedMessageIds !=null) {
-            event.attachedMessageIds?.forEach { messageId ->
-                // FIXME: maybe store as a batch
-                storeEdge(event, messageId)
-            }
-        }
+//        if (event.attachedMessageIds !=null) {
+//            event.attachedMessageIds?.forEach { messageId ->
+//                // FIXME: maybe store as a batch
+//                storeEdge(event, messageId)
+//            }
+//        }
     }
 
     override fun handle(intervalEventId: EventID, message: Message) {
@@ -109,13 +110,13 @@ class Processor(
         })
     }
 
-    private fun storeEdge(event: Event, messageId: String) {
-        // FIXME: I'm not sure about using the same edge
-        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
-            from = event.eventId
-            to = messageId
-        })
-    }
+//    private fun storeEdge(event: Event, messageId: String) {
+//        // FIXME: I'm not sure about using the same edge
+//        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
+//            from = event.eventId
+//            to = messageId
+//        })
+//    }
 
     private fun createDB(
         reportEventId: EventID,
