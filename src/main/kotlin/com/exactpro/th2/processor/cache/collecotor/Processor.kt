@@ -29,6 +29,7 @@ import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.utils.event.EventBatcher
+import com.exactpro.th2.common.utils.event.logId
 import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.cache.collecotor.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collecotor.message.CacheMessage.Companion.toCacheMessage
@@ -77,21 +78,24 @@ class Processor(
     }
 
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
-        var event = grpcEvent.toCacheEvent()
-        with (grpcEvent) {
-            K_LOGGER.info { id.id }
-        }
-        K_LOGGER.info ( event.eventId )
-        storeDocument(event)
-        if (grpcEvent.hasParentId()) {
-            storeEdge(event)
-        }
+        try {
+            var event = grpcEvent.toCacheEvent()
+            with (grpcEvent) {
+                K_LOGGER.info { id.logId }
+            }
+            storeDocument(event)
+            if (grpcEvent.hasParentId()) {
+                storeEdge(event)
+            }
 //        if (event.attachedMessageIds !=null) {
 //            event.attachedMessageIds?.forEach { messageId ->
 //                // FIXME: maybe store as a batch
 //                storeEdge(event, messageId)
 //            }
 //        }
+        } catch (e: Exception) {
+            K_LOGGER.error ( "Exception handling event", e )
+        }
     }
 
     override fun handle(intervalEventId: EventID, message: Message) {
