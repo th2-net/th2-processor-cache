@@ -17,6 +17,7 @@
 package com.exactpro.th2.processor.cache.collecotor.event
 
 import com.exactpro.th2.cache.common.event.Event
+import com.exactpro.th2.cache.common.toArangoTimestamp
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
@@ -29,8 +30,8 @@ internal fun GrpcEvent.toCacheEvent(): Event {
         false,  // TODO: do we need batch id ?
         name,
         type,
-        endTimestamp.toInstant(),
-        id.startTimestamp.toInstant(),
+        toArangoTimestamp(id.startTimestamp.toInstant()),
+        toArangoTimestamp(endTimestamp.toInstant()),
 
         if (this.parentId != null) {
             this.parentId.toString()
