@@ -25,33 +25,33 @@ import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
 internal fun GrpcEvent.toCacheEvent(): Event {
 
     return Event(
-        id.toString(),
-        null,   // TODO: do we need batch id ?
-        false,  // TODO: do we need batch id ?
-        name,
-        type,
-        toArangoTimestamp(id.startTimestamp.toInstant()),
-        toArangoTimestamp(endTimestamp.toInstant()),
+        eventId = id.toString(),
+        batchId = null,   // TODO: do we need batch id ?
+        isBatched = false,  // TODO: do we need batch id ?
+        eventName = name,
+        eventType = type,
+        startTimestamp = toArangoTimestamp(id.startTimestamp.toInstant()),
+        endTimestamp = toArangoTimestamp(endTimestamp.toInstant()),
 
-        if (this.parentId != null) {
-            this.parentId.toString()
-        } else {
-            null
-        },
-
-        isSuccess(),
-
-        if (attachedMessageIdsList != null) {
-            attachedMessageIdsList.map { messageId -> messageId.toString() }.toSet()
-        } else {
-            null
-        },
-
-        if (this.body != null) {
-            this.body.toStringUtf8()
-        } else {
-            null
-        }
+        parentEventId =
+                            if (this.parentId != null) {
+                                this.parentId.toString()
+                            } else {
+                                null
+                            },
+        successful = isSuccess(),
+        attachedMessageIds =
+                            if (attachedMessageIdsList != null) {
+                                attachedMessageIdsList.map { messageId -> messageId.toString() }.toSet()
+                            } else {
+                                null
+                            },
+        body =
+                            if (this.body != null) {
+                                this.body.toStringUtf8()
+                            } else {
+                                null
+                            }
     )
 }
 
