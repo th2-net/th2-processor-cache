@@ -18,14 +18,16 @@ package com.exactpro.th2.processor.cache.collecotor.event
 
 import com.exactpro.th2.cache.common.event.Event
 import com.exactpro.th2.cache.common.toArangoTimestamp
+import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.util.toInstant
+import com.exactpro.th2.common.utils.event.logId
 import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
 
 internal fun GrpcEvent.toCacheEvent(): Event {
 
     return Event(
-        eventId = id.toString(),
+        eventId = format(id),
         batchId = null,   // TODO: do we need batch id ?
         isBatched = false,  // TODO: do we need batch id ?
         eventName = name,
@@ -35,7 +37,7 @@ internal fun GrpcEvent.toCacheEvent(): Event {
 
         parentEventId =
                             if (this.parentId != null) {
-                                this.parentId.toString()
+                                format(this.parentId)
                             } else {
                                 null
                             },
@@ -55,6 +57,7 @@ internal fun GrpcEvent.toCacheEvent(): Event {
     )
 }
 
+internal fun GrpcEvent.format(eventId: EventID): String = eventId.logId
 
 internal fun GrpcEvent.isSuccess(): Boolean {
     return when (status) {
