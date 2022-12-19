@@ -78,7 +78,7 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         var event = grpcEvent.toCacheEvent()
-        K_LOGGER.info ( "persisting ${event}" )
+        K_LOGGER.info ( event.eventId )
         storeDocument(event)
         if (grpcEvent.hasParentId()) {
             storeEdge(event)
