@@ -26,7 +26,7 @@ import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
 internal fun GrpcEvent.toCacheEvent(): Event {
 
     return Event(
-        eventId = format(id),
+        eventId = id.format(),
         batchId = null,   // TODO: do we need batch id ?
         isBatched = false,  // TODO: do we need batch id ?
         eventName = name,
@@ -35,8 +35,8 @@ internal fun GrpcEvent.toCacheEvent(): Event {
         endTimestamp = toArangoTimestamp(endTimestamp.toInstant()),
 
         parentEventId =
-                            if (this.hasParentId()) {
-                                format(this.parentId)
+                            if (hasParentId()) {
+                                parentId.format()
                             } else {
                                 null
                             },
@@ -56,10 +56,10 @@ internal fun GrpcEvent.toCacheEvent(): Event {
     )
 }
 
-internal fun GrpcEvent.format(eventId: EventID): String {
+internal fun EventID.format(): String {
 
-    val ts = eventId.startTimestamp.toInstant()
-    return "${eventId.bookName}:${eventId.scope}:${ts.epochSecond}:${ts.nano}:${eventId.id}"
+    val ts = startTimestamp.toInstant()
+    return "${bookName}:${scope}:${ts.epochSecond}:${ts.nano}:${id}"
 }
 
 internal fun GrpcEvent.isSuccess(): Boolean {

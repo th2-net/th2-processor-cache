@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.processor.cache.collecotor
 
+import com.arangodb.ArangoCollection
 import com.arangodb.ArangoDatabase
 import com.arangodb.ArangoEdgeCollection
 import com.arangodb.ArangoVertexCollection
@@ -52,7 +53,8 @@ class Processor(
     private val rawMessageVertexCollection: ArangoVertexCollection
     private val parsedMessageVertexCollection: ArangoVertexCollection
     private val eventVertexCollection: ArangoVertexCollection
-    private val edgeVertexCollection: ArangoEdgeCollection
+    private val edgeCollection: ArangoEdgeCollection
+    private val eventRelationshipCollection: ArangoCollection
 
     init {
         createDB(processorEventId)
@@ -63,14 +65,15 @@ class Processor(
         recreateCollection(processorEventId, Arango.EVENT_EDGES, CollectionType.EDGES)
 
         val edgeDefinition: EdgeDefinition = EdgeDefinition()
-            .collection(Arango.EVENT_EDGES)
-            .from(Arango.EVENT_COLLECTION)
-            .to(Arango.EVENT_COLLECTION)
+                                                .collection(Arango.EVENT_EDGES)
+                                                .from(Arango.EVENT_COLLECTION)
+                                                .to(Arango.EVENT_COLLECTION)
 
         recreateGraph(edgeDefinition)
 
         with(database.graph(Arango.EVENT_GRAPH)) {
-            edgeVertexCollection = edgeCollection(Arango.EVENT_EDGES)
+            edgeCollection = edgeCollection(Arango.EVENT_EDGES)
+            eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
             eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
             rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
             parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
@@ -83,7 +86,7 @@ class Processor(
             var event = grpcEvent.toCacheEvent()
             storeDocument(event)
             if (grpcEvent.hasParentId()) {
-                storeEdge(event)
+                storeEventRelationship(event)
             }
 //        if (event.attachedMessageIds !=null) {
 //            event.attachedMessageIds?.forEach { messageId ->
@@ -93,7 +96,7 @@ class Processor(
 //        }
         } catch (e: Exception) {
             errors++
-            K_LOGGER.error ( "Exception handling event ${grpcEvent.format(grpcEvent.id)}, current number of errors = ${errors}", e )
+            K_LOGGER.error ( "Exception handling event ${grpcEvent.id.format()}, current number of errors = $errors", e )
         }
     }
 
@@ -109,15 +112,15 @@ class Processor(
         rawMessageVertexCollection.insertVertex(message.toCacheMessage())
     }
 
-    private fun storeEdge(event: Event) {
+    private fun storeEventRelationship(event: Event) {
 //        This throws "Document not found exception" as not all vertexes of the edge are present in event collection
-//        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
+//        edgeCollection.insertEdge(BaseEdgeDocument().apply {
 //            from = getEventKey(event.parentEventId!!)
 //            to = getEventKey(event.eventId)
 //        })
 
         // This way of creating edge works
-        database.collection(edgeVertexCollection.name()).insertDocument(BaseEdgeDocument().apply {
+        eventRelationshipCollection.insertDocument(BaseEdgeDocument().apply {
             from = getEventKey(event.parentEventId!!)
             to = getEventKey(event.eventId)
         })
@@ -125,7 +128,7 @@ class Processor(
 
 //    private fun storeEdge(event: Event, messageId: String) {
 //        // FIXME: I'm not sure about using the same edge
-//        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
+//        edgeCollection.insertEdge(BaseEdgeDocument().apply {
 //            from = event.eventId
 //            to = messageId
 //        })
