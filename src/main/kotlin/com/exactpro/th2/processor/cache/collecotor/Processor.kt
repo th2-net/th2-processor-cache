@@ -110,16 +110,16 @@ class Processor(
     }
 
     private fun storeEdge(event: Event) {
-//        This throws Document not found exception as not all vertexes of the edge are in event collection
+//        This throws "Document not found exception" as not all vertexes of the edge are present in event collection
 //        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
-//            from = Arango.EVENT_COLLECTION + "/" + event.parentEventId
-//            to = Arango.EVENT_COLLECTION + "/" + event.eventId
+//            from = getEventKey(event.parentEventId!!)
+//            to = getEventKey(event.eventId)
 //        })
 
         // This way of creating edge works
         database.collection(edgeVertexCollection.name()).insertDocument(BaseEdgeDocument().apply {
-            from = Arango.EVENT_COLLECTION + "/" + event.parentEventId
-            to = Arango.EVENT_COLLECTION + "/" + event.eventId
+            from = getEventKey(event.parentEventId!!)
+            to = getEventKey(event.eventId)
         })
     }
 
@@ -130,6 +130,8 @@ class Processor(
 //            to = messageId
 //        })
 //    }
+
+    private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
     private fun createDB(
         reportEventId: EventID,
@@ -160,9 +162,12 @@ class Processor(
     }
 
     private fun recreateGraph(edgeDefinition: EdgeDefinition) {
-        if (database.graph(Arango.EVENT_GRAPH).exists()) {
+        var name = Arango.EVENT_GRAPH
+        if (database.graph(name).exists()) {
+            K_LOGGER.info { "Dropping graph \"${name}\"" }
             database.graph(Arango.EVENT_GRAPH).drop()
         }
+        K_LOGGER.info { "Creating graph \"${name}\"" }
         database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
     }
 
@@ -173,8 +178,10 @@ class Processor(
     ) {
         runCatching {
             if (database.collection(name).exists()) {
+                K_LOGGER.info { "Dropping collection \"${name}\"" }
                 database.collection(name).drop()
             }
+            K_LOGGER.info { "Creating collection \"${name}\"" }
             database.createCollection(name, CollectionCreateOptions().type(type))
         }.onFailure { e ->
             eventBatcher.onEvent(
