@@ -29,8 +29,8 @@ import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.utils.event.EventBatcher
-import com.exactpro.th2.common.utils.event.logId
 import com.exactpro.th2.processor.api.IProcessor
+import com.exactpro.th2.processor.cache.collecotor.event.format
 import com.exactpro.th2.processor.cache.collecotor.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collecotor.message.CacheMessage.Companion.toCacheMessage
 import com.exactpro.th2.processor.utility.log
@@ -77,12 +77,10 @@ class Processor(
         }
     }
 
+    var errors = 0;
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
             var event = grpcEvent.toCacheEvent()
-            with (grpcEvent) {
-                K_LOGGER.info { id.logId }
-            }
             storeDocument(event)
             if (grpcEvent.hasParentId()) {
                 storeEdge(event)
@@ -94,7 +92,8 @@ class Processor(
 //            }
 //        }
         } catch (e: Exception) {
-            K_LOGGER.error ( "Exception handling event", e )
+            errors++
+            K_LOGGER.error ( "Exception handling event ${grpcEvent.format(grpcEvent.id)}, current number of errors = ${errors}", e )
         }
     }
 
@@ -111,9 +110,16 @@ class Processor(
     }
 
     private fun storeEdge(event: Event) {
-        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
-            from = event.parentEventId
-            to = event.eventId
+//        This throws Document not found exception as not all vertexes of the edge are in event collection
+//        edgeVertexCollection.insertEdge(BaseEdgeDocument().apply {
+//            from = Arango.EVENT_COLLECTION + "/" + event.parentEventId
+//            to = Arango.EVENT_COLLECTION + "/" + event.eventId
+//        })
+
+        // This way of creating edge works
+        database.collection(edgeVertexCollection.name()).insertDocument(BaseEdgeDocument().apply {
+            from = Arango.EVENT_COLLECTION + "/" + event.parentEventId
+            to = Arango.EVENT_COLLECTION + "/" + event.eventId
         })
     }
 

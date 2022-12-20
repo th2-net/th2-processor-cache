@@ -21,7 +21,6 @@ import com.exactpro.th2.cache.common.toArangoTimestamp
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.util.toInstant
-import com.exactpro.th2.common.utils.event.logId
 import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
 
 internal fun GrpcEvent.toCacheEvent(): Event {
@@ -36,7 +35,7 @@ internal fun GrpcEvent.toCacheEvent(): Event {
         endTimestamp = toArangoTimestamp(endTimestamp.toInstant()),
 
         parentEventId =
-                            if (this.parentId != null) {
+                            if (this.hasParentId()) {
                                 format(this.parentId)
                             } else {
                                 null
@@ -57,7 +56,11 @@ internal fun GrpcEvent.toCacheEvent(): Event {
     )
 }
 
-internal fun GrpcEvent.format(eventId: EventID): String = eventId.id
+internal fun GrpcEvent.format(eventId: EventID): String {
+
+    val ts = eventId.startTimestamp.toInstant()
+    return "${eventId.bookName}:${eventId.scope}:${ts.epochSecond}:${ts.nano}:${eventId.id}"
+}
 
 internal fun GrpcEvent.isSuccess(): Boolean {
     return when (status) {
