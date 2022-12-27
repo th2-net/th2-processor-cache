@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.processor.cache.collecotor.event
+package com.exactpro.th2.processor.cache.collector.event
 
 import com.exactpro.th2.cache.common.event.Event
 import com.exactpro.th2.cache.common.toArangoTimestamp
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.grpc.EventStatus
 import com.exactpro.th2.common.util.toInstant
-import com.exactpro.th2.processor.cache.collecotor.GrpcEvent
+import com.exactpro.th2.processor.cache.collector.GrpcEvent
 
 internal fun GrpcEvent.toCacheEvent(): Event {
 

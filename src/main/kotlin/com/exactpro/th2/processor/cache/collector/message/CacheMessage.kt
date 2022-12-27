@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.processor.cache.collecotor.message
+package com.exactpro.th2.processor.cache.collector.message
 
 import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.ParsedMessageMetadata
@@ -25,8 +25,8 @@ import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.message.*
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.common.utils.message.id
-import com.exactpro.th2.processor.cache.collecotor.GrpcParsedMessage
-import com.exactpro.th2.processor.cache.collecotor.GrpcRawMessage
+import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
+import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
 
 //FIXME: Vertex id should be generated base on the message id
 internal fun GrpcParsedMessage.toCacheMessage(): ParsedMessage {

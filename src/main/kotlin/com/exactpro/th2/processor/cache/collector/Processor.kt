@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.processor.cache.collecotor
+package com.exactpro.th2.processor.cache.collector
 
 import com.arangodb.ArangoCollection
 import com.arangodb.ArangoDatabase
@@ -33,10 +33,10 @@ import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.id
 import com.exactpro.th2.processor.api.IProcessor
-import com.exactpro.th2.processor.cache.collecotor.event.format
-import com.exactpro.th2.processor.cache.collecotor.event.toCacheEvent
-import com.exactpro.th2.processor.cache.collecotor.message.format
-import com.exactpro.th2.processor.cache.collecotor.message.toCacheMessage
+import com.exactpro.th2.processor.cache.collector.event.format
+import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
+import com.exactpro.th2.processor.cache.collector.message.format
+import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import mu.KotlinLogging
 
@@ -75,7 +75,7 @@ class Processor(
                                                 .from(Arango.EVENT_COLLECTION)
                                                 .to(Arango.EVENT_COLLECTION)
 
-        recreateGraph(edgeDefinition)
+        initGraph(edgeDefinition)
 
         with(database.graph(Arango.EVENT_GRAPH)) {
             edgeCollection = edgeCollection(Arango.EVENT_EDGES)
@@ -83,44 +83,6 @@ class Processor(
             eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
             rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
             parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
-        }
-    }
-
-    private fun initCollections(reportEventId: EventID, collections: Map<String, CollectionType>) {
-        collections.forEach {
-            val name = it.key
-            val type = it.value
-            kotlin.runCatching {
-                val collection = database.collection(name)
-                val exists = collection.exists()
-                if (exists && recreateCollections) {
-                    K_LOGGER.info { "Dropping collection \"${name}\"" }
-                    database.collection(name).drop()
-                }
-                if (!exists) {
-                    K_LOGGER.info { "Creating collection \"${name}\"" }
-                    database.createCollection(name, CollectionCreateOptions().type(type))
-                }
-            }.onFailure { e ->
-                eventBatcher.onEvent(
-                    EventBuilder.start()
-                        .name("Failed to create $name:$type collection")
-                        .type(EVENT_TYPE_INIT_DATABASE)
-                        .status(Status.FAILED)
-                        .exception(e, true)
-                        .toProto(reportEventId)
-                        .log(K_LOGGER)
-                )
-                throw e
-            }.onSuccess {
-                eventBatcher.onEvent(
-                    EventBuilder.start()
-                        .name("Recreated $name:$type collection")
-                        .type(EVENT_TYPE_INIT_DATABASE)
-                        .toProto(reportEventId)
-                        .log(K_LOGGER)
-                )
-            }.getOrThrow()
         }
     }
 
@@ -228,14 +190,55 @@ class Processor(
         }.getOrThrow()
     }
 
-    private fun recreateGraph(edgeDefinition: EdgeDefinition) {
-        var name = Arango.EVENT_GRAPH
-        if (database.graph(name).exists()) {
+    private fun initGraph(edgeDefinition: EdgeDefinition) {
+        val name = Arango.EVENT_GRAPH
+        val exists = database.graph(name).exists()
+        if (exists && recreateCollections) {
             K_LOGGER.info { "Dropping graph \"${name}\"" }
             database.graph(Arango.EVENT_GRAPH).drop()
         }
-        K_LOGGER.info { "Creating graph \"${name}\"" }
-        database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
+        if (!exists) {
+            K_LOGGER.info { "Creating graph \"${name}\"" }
+            database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
+        }
+    }
+
+    private fun initCollections(reportEventId: EventID, collections: Map<String, CollectionType>) {
+        collections.forEach {
+            val name = it.key
+            val type = it.value
+            kotlin.runCatching {
+                val collection = database.collection(name)
+                val exists = collection.exists()
+                if (exists && recreateCollections) {
+                    K_LOGGER.info { "Dropping collection \"${name}\"" }
+                    database.collection(name).drop()
+                }
+                if (!exists) {
+                    K_LOGGER.info { "Creating collection \"${name}\"" }
+                    database.createCollection(name, CollectionCreateOptions().type(type))
+                }
+            }.onFailure { e ->
+                eventBatcher.onEvent(
+                    EventBuilder.start()
+                        .name("Failed to create $name:$type collection")
+                        .type(EVENT_TYPE_INIT_DATABASE)
+                        .status(Status.FAILED)
+                        .exception(e, true)
+                        .toProto(reportEventId)
+                        .log(K_LOGGER)
+                )
+                throw e
+            }.onSuccess {
+                eventBatcher.onEvent(
+                    EventBuilder.start()
+                        .name("Recreated $name:$type collection")
+                        .type(EVENT_TYPE_INIT_DATABASE)
+                        .toProto(reportEventId)
+                        .log(K_LOGGER)
+                )
+            }.getOrThrow()
+        }
     }
 
     companion object {

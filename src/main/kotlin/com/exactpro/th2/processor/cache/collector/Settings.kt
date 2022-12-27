@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.exactpro.th2.processor.cache.collecotor
+package com.exactpro.th2.processor.cache.collector
 
 import com.exactpro.th2.cache.common.ArangoCredentials
 import com.exactpro.th2.processor.api.IProcessorSettings
