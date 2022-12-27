@@ -20,5 +20,6 @@ import com.exactpro.th2.cache.common.ArangoCredentials
 import com.exactpro.th2.processor.api.IProcessorSettings
 
 data class Settings(
-    val arangoCredentials: ArangoCredentials
+    val arangoCredentials: ArangoCredentials,
+    val recreateCollections: Boolean
 ): IProcessorSettings

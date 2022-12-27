@@ -51,7 +51,7 @@ class Processor(
     settings: Settings,
 ) : IProcessor {
 
-
+    private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
     private val database: ArangoDatabase = arango.getDatabase()
     private val rawMessageVertexCollection: ArangoVertexCollection
@@ -63,10 +63,12 @@ class Processor(
     init {
         createDB(processorEventId)
 
-        recreateCollection(processorEventId, Arango.EVENT_COLLECTION, CollectionType.DOCUMENT)
-        recreateCollection(processorEventId, Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
-        recreateCollection(processorEventId, Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
-        recreateCollection(processorEventId, Arango.EVENT_EDGES, CollectionType.EDGES)
+        initCollections(processorEventId, mapOf(
+            Arango.EVENT_COLLECTION to CollectionType.DOCUMENT,
+            Arango.RAW_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
+            Arango.PARSED_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
+            Arango.EVENT_EDGES to CollectionType.EDGES
+        ))
 
         val edgeDefinition: EdgeDefinition = EdgeDefinition()
                                                 .collection(Arango.EVENT_EDGES)
@@ -81,6 +83,41 @@ class Processor(
             eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
             rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
             parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
+        }
+    }
+
+    private fun initCollections(reportEventId: EventID, collections: Map<String, CollectionType>) {
+        collections.forEach {
+            val name = it.key
+            val type = it.value
+            kotlin.runCatching {
+                val collection = database.collection(name)
+                if (collection.exists() && recreateCollections) {
+                    K_LOGGER.info { "Dropping collection \"${name}\"" }
+                    database.collection(name).drop()
+                }
+                K_LOGGER.info { "Creating collection \"${name}\"" }
+                database.createCollection(name, CollectionCreateOptions().type(type))
+            }.onFailure { e ->
+                eventBatcher.onEvent(
+                    EventBuilder.start()
+                        .name("Failed to create $name:$type collection")
+                        .type(EVENT_TYPE_INIT_DATABASE)
+                        .status(Status.FAILED)
+                        .exception(e, true)
+                        .toProto(reportEventId)
+                        .log(K_LOGGER)
+                )
+                throw e
+            }.onSuccess {
+                eventBatcher.onEvent(
+                    EventBuilder.start()
+                        .name("Recreated $name:$type collection")
+                        .type(EVENT_TYPE_INIT_DATABASE)
+                        .toProto(reportEventId)
+                        .log(K_LOGGER)
+                )
+            }.getOrThrow()
         }
     }
 
@@ -196,40 +233,6 @@ class Processor(
         }
         K_LOGGER.info { "Creating graph \"${name}\"" }
         database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
-    }
-
-    private fun recreateCollection(
-        reportEventId: EventID,
-        name: String,
-        type: CollectionType
-    ) {
-        runCatching {
-            if (database.collection(name).exists()) {
-                K_LOGGER.info { "Dropping collection \"${name}\"" }
-                database.collection(name).drop()
-            }
-            K_LOGGER.info { "Creating collection \"${name}\"" }
-            database.createCollection(name, CollectionCreateOptions().type(type))
-        }.onFailure { e ->
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Failed to recreate $name:$type collection")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Status.FAILED)
-                    .exception(e, true)
-                    .toProto(reportEventId)
-                    .log(K_LOGGER)
-            )
-            throw e
-        }.onSuccess {
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Recreated $name:$type collection")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .toProto(reportEventId)
-                    .log(K_LOGGER)
-            )
-        }.getOrThrow()
     }
 
     companion object {
