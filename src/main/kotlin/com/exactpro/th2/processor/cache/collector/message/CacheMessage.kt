@@ -54,7 +54,6 @@ internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
         sessionAlias = id.connectionId.sessionAlias,
         direction = direction.toString(),
         sequence = id.sequence,
-        subsequence = id.subsequenceList,
         timestamp = toArangoTimestamp(id.timestamp.toInstant()),
         attachedEventIds = emptySet(),
         body = body.toByteArray(),
