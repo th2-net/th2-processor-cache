@@ -16,19 +16,61 @@
 
 package com.exactpro.th2.processor.cache.collecotor.message
 
+import com.exactpro.th2.cache.common.message.ParsedMessage
+import com.exactpro.th2.cache.common.message.ParsedMessageMetadata
+import com.exactpro.th2.cache.common.message.RawMessage
+import com.exactpro.th2.cache.common.message.RawMessageMetadata
+import com.exactpro.th2.cache.common.toArangoTimestamp
 import com.exactpro.th2.common.grpc.MessageID
-import com.exactpro.th2.processor.cache.collecotor.GrpcMessage
+import com.exactpro.th2.common.message.*
+import com.exactpro.th2.common.util.toInstant
+import com.exactpro.th2.common.utils.message.id
+import com.exactpro.th2.processor.cache.collecotor.GrpcParsedMessage
+import com.exactpro.th2.processor.cache.collecotor.GrpcRawMessage
 
 //FIXME: Vertex id should be generated base on the message id
-internal data class CacheMessage(
-    val tmp: String //FIXME: use class from th2-cache-common project
-) {
-    companion object {
-        fun GrpcMessage.toCacheMessage(): CacheMessage {
-            TODO()
-        }
+internal fun GrpcParsedMessage.toCacheMessage(): ParsedMessage {
+    return ParsedMessage(
+        id = id.format(),
+        book = id.bookName,
+        group = id.connectionId.sessionGroup,
+        sessionAlias = id.connectionId.sessionAlias,
+        direction = direction.toString(),
+        sequence = id.sequence,
+        subsequence = id.subsequenceList,
+        timestamp = toArangoTimestamp(id.timestamp.toInstant()),
+        attachedEventIds = emptySet(),
+        parsedMessageGroup = null,
+        imageType = null,
+        metadata = metadata.toParsedMessageMetadata()
+    )
+}
 
-        val MessageID.cacheId: String
-            get() = TODO()
-    }
+internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
+    return RawMessage(
+        id = id.format(),
+        book = id.bookName,
+        group = id.connectionId.sessionGroup,
+        sessionAlias = id.connectionId.sessionAlias,
+        direction = direction.toString(),
+        sequence = id.sequence,
+        subsequence = id.subsequenceList,
+        timestamp = toArangoTimestamp(id.timestamp.toInstant()),
+        attachedEventIds = emptySet(),
+        body = body.toByteArray(),
+        imageType = null,
+        metadata = metadata.toRawMessageMetadata()
+    )
+}
+
+internal fun MessageID.format(): String {
+    return "${bookName}:${connectionId.sessionGroup}:${timestamp}:${sequence}"
+}
+
+internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadata() : ParsedMessageMetadata {
+    return ParsedMessageMetadata(id.bookName, toArangoTimestamp(id.timestamp.toInstant()), messageType, propertiesMap, protocol)
+}
+
+internal fun com.exactpro.th2.common.grpc.RawMessageMetadata.toRawMessageMetadata() : RawMessageMetadata {
+    return RawMessageMetadata(id.bookName, toArangoTimestamp(id.timestamp.toInstant()), propertiesMap, protocol)
 }

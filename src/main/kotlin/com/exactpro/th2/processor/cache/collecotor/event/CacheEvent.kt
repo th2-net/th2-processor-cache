@@ -27,6 +27,9 @@ internal fun GrpcEvent.toCacheEvent(): Event {
 
     return Event(
         eventId = id.format(),
+        book = id.bookName,
+        scope = id.scope,
+        id = id.id,
         batchId = null,   // TODO: do we need batch id ?
         isBatched = false,  // TODO: do we need batch id ?
         eventName = name,

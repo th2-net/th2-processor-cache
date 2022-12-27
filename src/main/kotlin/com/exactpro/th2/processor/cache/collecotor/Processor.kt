@@ -26,19 +26,23 @@ import com.arangodb.entity.EdgeDefinition
 import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.cache.common.event.Event
+import com.exactpro.th2.cache.common.message.ParsedMessage
+import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.utils.event.EventBatcher
+import com.exactpro.th2.common.utils.message.id
 import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.cache.collecotor.event.format
 import com.exactpro.th2.processor.cache.collecotor.event.toCacheEvent
-import com.exactpro.th2.processor.cache.collecotor.message.CacheMessage.Companion.toCacheMessage
+import com.exactpro.th2.processor.cache.collecotor.message.format
+import com.exactpro.th2.processor.cache.collecotor.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import mu.KotlinLogging
 
 typealias GrpcEvent = com.exactpro.th2.common.grpc.Event
-typealias GrpcMessage = Message
+typealias GrpcParsedMessage = com.exactpro.th2.common.grpc.Message
+typealias GrpcRawMessage = com.exactpro.th2.common.grpc.RawMessage
 typealias EventBuilder = com.exactpro.th2.common.event.Event
 
 class Processor(
@@ -100,16 +104,36 @@ class Processor(
         }
     }
 
-    override fun handle(intervalEventId: EventID, message: Message) {
-        storeDocument(message)
+    override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
+        try {
+            var message = grpcMessage.toCacheMessage()
+            storeDocument(message)
+        } catch (e: Exception) {
+            errors++
+            K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
+        }
+    }
+
+    override fun handle(intervalEventId: EventID, grpcMessage: GrpcRawMessage) {
+        try {
+            var message = grpcMessage.toCacheMessage()
+            storeDocument(message)
+        } catch (e: Exception) {
+            errors++
+            K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
+        }
     }
 
     private fun storeDocument(event: Event) {
         eventVertexCollection.insertVertex(event)
     }
 
-    private fun storeDocument(message: GrpcMessage) {
-        rawMessageVertexCollection.insertVertex(message.toCacheMessage())
+    private fun storeDocument(message: ParsedMessage) {
+        parsedMessageVertexCollection.insertVertex(message)
+    }
+
+    private fun storeDocument(message: RawMessage) {
+        rawMessageVertexCollection.insertVertex(message)
     }
 
     private fun storeEventRelationship(event: Event) {
