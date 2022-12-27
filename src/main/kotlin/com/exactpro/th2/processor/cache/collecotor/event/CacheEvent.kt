@@ -51,8 +51,8 @@ internal fun GrpcEvent.toCacheEvent(): Event {
                                 null
                             },
         body =
-                            if (this.body != null) {
-                                this.body.toStringUtf8()
+                            if (body != null) {
+                                body.toStringUtf8()
                             } else {
                                 null
                             }
