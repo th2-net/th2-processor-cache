@@ -92,12 +92,15 @@ class Processor(
             val type = it.value
             kotlin.runCatching {
                 val collection = database.collection(name)
-                if (collection.exists() && recreateCollections) {
+                val exists = collection.exists()
+                if (exists && recreateCollections) {
                     K_LOGGER.info { "Dropping collection \"${name}\"" }
                     database.collection(name).drop()
                 }
-                K_LOGGER.info { "Creating collection \"${name}\"" }
-                database.createCollection(name, CollectionCreateOptions().type(type))
+                if (!exists) {
+                    K_LOGGER.info { "Creating collection \"${name}\"" }
+                    database.createCollection(name, CollectionCreateOptions().type(type))
+                }
             }.onFailure { e ->
                 eventBatcher.onEvent(
                     EventBuilder.start()
