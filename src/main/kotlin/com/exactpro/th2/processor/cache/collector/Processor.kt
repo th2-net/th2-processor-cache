@@ -16,13 +16,11 @@
 
 package com.exactpro.th2.processor.cache.collector
 
-import com.arangodb.ArangoCollection
-import com.arangodb.ArangoDatabase
-import com.arangodb.ArangoEdgeCollection
-import com.arangodb.ArangoVertexCollection
+import com.arangodb.*
 import com.arangodb.entity.BaseEdgeDocument
 import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
+import com.arangodb.entity.VertexEntity
 import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.cache.common.event.Event
@@ -30,6 +28,7 @@ import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.id
 import com.exactpro.th2.processor.api.IProcessor
@@ -70,12 +69,18 @@ class Processor(
             Arango.EVENT_EDGES to CollectionType.EDGES
         ))
 
-        val edgeDefinition: EdgeDefinition = EdgeDefinition()
-                                                .collection(Arango.EVENT_EDGES)
-                                                .from(Arango.EVENT_COLLECTION)
-                                                .to(Arango.EVENT_COLLECTION)
+        val eventGraphEdgeDefinition: EdgeDefinition = EdgeDefinition()
+            .collection(Arango.EVENT_EDGES)
+            .from(Arango.EVENT_COLLECTION)
+            .to(Arango.EVENT_COLLECTION)
 
-        initGraph(edgeDefinition)
+        val messageGraphEdgeDefinition: EdgeDefinition = EdgeDefinition()
+            .collection(Arango.MESSAGE_EDGES)
+            .from(Arango.PARSED_MESSAGE_COLLECTION)
+            .to(Arango.PARSED_MESSAGE_COLLECTION)
+
+        initGraph(eventGraphEdgeDefinition)
+        initGraph(messageGraphEdgeDefinition)
 
         with(database.graph(Arango.EVENT_GRAPH)) {
             edgeCollection = edgeCollection(Arango.EVENT_EDGES)
@@ -240,6 +245,60 @@ class Processor(
             }.getOrThrow()
         }
     }
+
+    private fun createEdgeValueById(vertFromId: String, vertToId: String): BaseEdgeDocument {
+        val value = BaseEdgeDocument()
+        value.from = vertFromId
+        value.to = vertToId
+        return value
+    }
+
+    private fun createEdge(vertFromId: String, vertToId: String) {
+        try {
+            val value = createEdgeValueById(vertFromId, vertToId)
+            database.graph(Arango.MESSAGE_GRAPH).edgeCollection(Arango.MESSAGE_EDGES).insertEdge(value)
+        } catch (e: ArangoDBException) {
+            println(e.printStackTrace())
+        }
+    }
+
+    private fun createVertex(node: ParsedMessage): VertexEntity {
+        return database.graph(Arango.MESSAGE_GRAPH).vertexCollection(Arango.PARSED_MESSAGE_COLLECTION).insertVertex(node)
+    }
+
+    data class MessageNode(
+        val message: ParsedMessage,
+        var vertexKey: String? = null
+    )
+
+    fun fillGraph(data: Map<MessageID, MessageNode>) {
+        data.forEach { entity ->
+            val messageId = entity.key
+            val node = entity.value
+
+            if (node.vertexKey == null) { // Vertex may be created earlier
+                val vertexKey = createVertex(node.message).id
+                node.vertexKey = vertexKey
+            }
+            //TODO
+//            val parentMessageId = node.message.subsequence[]
+//
+//            if (!parentMessageId.equals(EventID.getDefaultInstance())) // if node isn't root event
+//            {
+//                val parentNode = data[parentMessageId]
+//                if (parentNode != null) {
+//                    if (node.vertexKey == null) {
+//                        val parentVertexKey = createVertex(node.message).id
+//                        node.vertexKey = parentVertexKey
+//                    }
+//                    K_LOGGER.debug { "Creating new edge ${parentNode.vertexKey} -> ${node.vertexKey}" }
+//                    createEdge(parentNode.vertexKey!!, node.vertexKey!!)
+//                } else
+//                    K_LOGGER.error { "Error!" }
+//            }
+        }
+    }
+
 
     companion object {
         private val K_LOGGER = KotlinLogging.logger {}
