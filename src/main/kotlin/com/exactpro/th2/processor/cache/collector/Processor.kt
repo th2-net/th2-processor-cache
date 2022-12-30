@@ -293,7 +293,7 @@ class Processor(
                     K_LOGGER.debug { "Creating new edge ${parentNode.vertexKey} -> ${node.vertexKey}" }
                     createEdge(parentNode.vertexKey!!, node.vertexKey!!)
                 } else
-                    K_LOGGER.error { "Error!" }
+                    K_LOGGER.error { "parentEvent with id $parentMessageId not found for message with id $messageId" }
             }
         }
     }
