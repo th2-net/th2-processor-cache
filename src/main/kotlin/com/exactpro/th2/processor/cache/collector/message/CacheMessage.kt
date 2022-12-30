@@ -63,7 +63,7 @@ internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
 }
 
 internal fun MessageID.format(): String {
-    return "${bookName}:${connectionId.sessionGroup}:${timestamp}:${sequence}"
+    return "${bookName}:${connectionId.sessionGroup}:${timestamp}:${sequence}:${subsequenceList.joinToString { "." }}"
 }
 
 internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadata() : ParsedMessageMetadata {

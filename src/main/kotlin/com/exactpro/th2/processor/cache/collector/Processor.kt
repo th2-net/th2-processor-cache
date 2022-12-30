@@ -266,12 +266,12 @@ class Processor(
         return database.graph(Arango.MESSAGE_GRAPH).vertexCollection(Arango.PARSED_MESSAGE_COLLECTION).insertVertex(node)
     }
 
-    data class MessageNode(
+    private data class MessageNode(
         val message: ParsedMessage,
         var vertexKey: String? = null
     )
 
-    fun fillGraph(data: Map<MessageID, MessageNode>) {
+    private fun fillGraph(data: Map<String, MessageNode>) {
         data.forEach { entity ->
             val messageId = entity.key
             val node = entity.value
@@ -280,25 +280,35 @@ class Processor(
                 val vertexKey = createVertex(node.message).id
                 node.vertexKey = vertexKey
             }
-            //TODO
-//            val parentMessageId = node.message.subsequence[]
-//
-//            if (!parentMessageId.equals(EventID.getDefaultInstance())) // if node isn't root event
-//            {
-//                val parentNode = data[parentMessageId]
-//                if (parentNode != null) {
-//                    if (node.vertexKey == null) {
-//                        val parentVertexKey = createVertex(node.message).id
-//                        node.vertexKey = parentVertexKey
-//                    }
-//                    K_LOGGER.debug { "Creating new edge ${parentNode.vertexKey} -> ${node.vertexKey}" }
-//                    createEdge(parentNode.vertexKey!!, node.vertexKey!!)
-//                } else
-//                    K_LOGGER.error { "Error!" }
-//            }
+
+            val parentMessageId = node.message.id.dropLast(2)
+            if (!parentMessageId.equals(MessageID.getDefaultInstance())) // if node isn't root event
+            {
+                val parentNode = data[parentMessageId]
+                if (parentNode != null) {
+                    if (node.vertexKey == null) {
+                        val parentVertexKey = createVertex(node.message).id
+                        node.vertexKey = parentVertexKey
+                    }
+                    K_LOGGER.debug { "Creating new edge ${parentNode.vertexKey} -> ${node.vertexKey}" }
+                    createEdge(parentNode.vertexKey!!, node.vertexKey!!)
+                } else
+                    K_LOGGER.error { "Error!" }
+            }
         }
     }
 
+    private fun createMessageNodeMap(messageMetadataList: List<GrpcParsedMessage>): Map<String, MessageNode> {
+        K_LOGGER.debug { "Creating MessageNodeMap" }
+        val map = messageMetadataList.map { it.toCacheMessage() }
+            .associate { it.id to MessageNode(it) }
+        K_LOGGER.debug { "MessageNodeMap created" }
+        return map
+    }
+
+    fun generateMessageGraph(messageMetadataList: List<GrpcParsedMessage>) {
+        fillGraph(createMessageNodeMap(messageMetadataList))
+    }
 
     companion object {
         private val K_LOGGER = KotlinLogging.logger {}
