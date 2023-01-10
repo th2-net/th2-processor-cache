@@ -30,7 +30,7 @@ dependencies {
     kapt 'com.google.auto.service:auto-service:1.0.1'
 
     api platform('com.exactpro.th2:bom:4.0.2')
-    implementation 'com.exactpro.th2:cache-common:0.0.1-new-model-3787906535-b83e018-SNAPSHOT'
+    implementation 'com.exactpro.th2:cache-common:0.0.1-new-model-3881647454-95a823c-SNAPSHOT'
 
     implementation 'com.exactpro.th2:grpc-common:4.0.0-th2-2150-books-pages-1606698156-SNAPSHOT'
     implementation 'com.exactpro.th2:common:4.0.0-TH2-4262-reduce-load-book-and-page-3574992387-SNAPSHOT'
