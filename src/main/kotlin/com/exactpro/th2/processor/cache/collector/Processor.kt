@@ -58,6 +58,7 @@ class Processor(
     private val eventVertexCollection: ArangoVertexCollection
     private val edgeCollection: ArangoEdgeCollection
     private val eventRelationshipCollection: ArangoCollection
+    private val parsedMessageRelationshipCollection: ArangoCollection
 
     init {
         createDB(processorEventId)
@@ -66,7 +67,8 @@ class Processor(
             Arango.EVENT_COLLECTION to CollectionType.DOCUMENT,
             Arango.RAW_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
             Arango.PARSED_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
-            Arango.EVENT_EDGES to CollectionType.EDGES
+            Arango.EVENT_EDGES to CollectionType.EDGES,
+            Arango.MESSAGE_EDGES to CollectionType.EDGES
         ))
 
         val eventGraphEdgeDefinition: EdgeDefinition = EdgeDefinition()
@@ -85,6 +87,7 @@ class Processor(
         with(database.graph(Arango.EVENT_GRAPH)) {
             edgeCollection = edgeCollection(Arango.EVENT_EDGES)
             eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
+            parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
             eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
             rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
             parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
@@ -115,6 +118,9 @@ class Processor(
         try {
             var message = grpcMessage.toCacheMessage()
             storeDocument(message)
+            if (message.hasParentMessage()) {
+                storeMessageRelationship(message)
+            }
         } catch (e: Exception) {
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
@@ -143,6 +149,13 @@ class Processor(
         rawMessageVertexCollection.insertVertex(message)
     }
 
+    private fun storeMessageRelationship(message: ParsedMessage) {
+        parsedMessageRelationshipCollection.insertDocument(BaseEdgeDocument().apply {
+            from = getMessageKey(message.id.dropLast(2))
+            to = getMessageKey(message.id)
+        })
+    }
+
     private fun storeEventRelationship(event: Event) {
 //        This throws "Document not found exception" as not all vertexes of the edge are present in event collection
 //        edgeCollection.insertEdge(BaseEdgeDocument().apply {
@@ -166,6 +179,8 @@ class Processor(
 //    }
 
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
+
+    private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
 
     private fun createDB(
         reportEventId: EventID,
@@ -282,7 +297,7 @@ class Processor(
             }
 
             val parentMessageId = node.message.id.dropLast(2)
-            if (!parentMessageId.equals(MessageID.getDefaultInstance())) // if node isn't root event
+            if (!parentMessageId.split(":").last().contains(".")) // if node isn't root event
             {
                 val parentNode = data[parentMessageId]
                 if (parentNode != null) {
@@ -314,4 +329,9 @@ class Processor(
         private val K_LOGGER = KotlinLogging.logger {}
         private const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
     }
+}
+
+private fun ParsedMessage.hasParentMessage(): Boolean {
+    val parentMessageId = this.id.dropLast(2)
+    return !parentMessageId.split(":").last().contains(".")
 }
