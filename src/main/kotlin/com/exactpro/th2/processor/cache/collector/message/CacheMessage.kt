@@ -73,3 +73,8 @@ internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadat
 internal fun com.exactpro.th2.common.grpc.RawMessageMetadata.toRawMessageMetadata() : RawMessageMetadata {
     return RawMessageMetadata(id.bookName, toArangoTimestamp(id.timestamp.toInstant()), propertiesMap, protocol)
 }
+
+internal fun ParsedMessage.hasParentMessage(): Boolean {
+    val parentMessageId = this.id.dropLast(2)
+    return !parentMessageId.split(":").last().contains(".")
+}
