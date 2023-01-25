@@ -57,9 +57,14 @@ class Processor(
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
     private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
-        val map = it.eventsList.map { el -> el.toCacheEvent() }
-        eventCollection.insertDocuments(map)
-        map.filter { el -> el.parentEventId != null }.forEach { el -> storeEventRelationship(el) }
+        val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
+        eventCollection.insertDocuments(grpcToCacheEvents)
+        eventRelationshipCollection.insertDocuments(
+            grpcToCacheEvents.map { el -> BaseEdgeDocument().apply {
+                from = getEventKey(el.parentEventId!!)
+                to = getEventKey(el.eventId)
+            }}
+        )
     }
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
