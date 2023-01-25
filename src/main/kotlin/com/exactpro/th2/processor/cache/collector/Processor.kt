@@ -57,7 +57,9 @@ class Processor(
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
     private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
-        eventCollection.insertDocuments(it.eventsList.map { el -> el.toCacheEvent() })
+        val map = it.eventsList.map { el -> el.toCacheEvent() }
+        eventCollection.insertDocuments(map)
+        map.filter { el -> el.parentEventId != null }.forEach { el -> storeEventRelationship(el) }
     }
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
@@ -103,9 +105,6 @@ class Processor(
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
             batch.onEvent(grpcEvent)
-//            if (grpcEvent.hasParentId()) {
-//                storeEventRelationship(event)
-//            }
 //        if (event.attachedMessageIds !=null) {
 //            event.attachedMessageIds?.forEach { messageId ->
 //                // FIXME: maybe store as a batch
