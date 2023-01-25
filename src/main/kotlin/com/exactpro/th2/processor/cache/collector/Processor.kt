@@ -59,11 +59,12 @@ class Processor(
     private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
         eventCollection.insertDocuments(grpcToCacheEvents)
-        eventRelationshipCollection.insertDocuments(
-            grpcToCacheEvents.map { el -> BaseEdgeDocument().apply {
+        eventRelationshipCollection.insertDocuments(grpcToCacheEvents.filter { el -> el.parentEventId != null }
+            .map { el -> BaseEdgeDocument().apply {
                 from = getEventKey(el.parentEventId!!)
                 to = getEventKey(el.eventId)
-            }}
+                }
+            }
         )
     }
     private val recreateCollections: Boolean = settings.recreateCollections
