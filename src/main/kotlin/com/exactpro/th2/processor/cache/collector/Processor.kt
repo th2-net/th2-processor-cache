@@ -146,10 +146,6 @@ class Processor(
         }
     }
 
-    private fun storeDocument(event: Event) {
-        eventCollection.insertDocument(event)
-    }
-
     private fun storeDocument(message: ParsedMessage) {
         parsedMessageCollection.insertDocument(message)
     }
@@ -164,28 +160,6 @@ class Processor(
             to = getMessageKey(message.id)
         })
     }
-
-    private fun storeEventRelationship(event: Event) {
-//        This throws "Document not found exception" as not all vertexes of the edge are present in event collection
-//        edgeCollection.insertEdge(BaseEdgeDocument().apply {
-//            from = getEventKey(event.parentEventId!!)
-//            to = getEventKey(event.eventId)
-//        })
-
-        // This way of creating edge works
-        eventRelationshipCollection.insertDocument(BaseEdgeDocument().apply {
-            from = getEventKey(event.parentEventId!!)
-            to = getEventKey(event.eventId)
-        })
-    }
-
-//    private fun storeEdge(event: Event, messageId: String) {
-//        // FIXME: I'm not sure about using the same edge
-//        edgeCollection.insertEdge(BaseEdgeDocument().apply {
-//            from = event.eventId
-//            to = messageId
-//        })
-//    }
 
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
