@@ -21,5 +21,7 @@ import com.exactpro.th2.processor.api.IProcessorSettings
 
 data class Settings(
     val arangoCredentials: ArangoCredentials,
-    val recreateCollections: Boolean
+    val recreateCollections: Boolean,
+    val maxBatchSize: Int,
+    val maxFlushTime: Long
 ): IProcessorSettings

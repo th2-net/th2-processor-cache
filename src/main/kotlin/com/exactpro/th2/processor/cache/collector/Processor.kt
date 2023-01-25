@@ -36,7 +36,9 @@ import com.exactpro.th2.processor.cache.collector.message.format
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 import mu.KotlinLogging
+import java.util.concurrent.*
 
 typealias GrpcEvent = com.exactpro.th2.common.grpc.Event
 typealias GrpcParsedMessage = com.exactpro.th2.common.grpc.Message
@@ -48,14 +50,21 @@ class Processor(
     processorEventId: EventID,
     settings: Settings,
 ) : IProcessor {
-
+    private val maxBatchSize: Int = settings.maxBatchSize
+    private val maxFlushTime: Long = settings.maxFlushTime
+    private val executor = Executors.newScheduledThreadPool(
+        1,
+        ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
+    )
+    private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
+        eventCollection.insertDocuments(it.eventsList.map { el -> el.toCacheEvent() })
+    }
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
     private val database: ArangoDatabase = arango.getDatabase()
-    private val rawMessageVertexCollection: ArangoVertexCollection
-    private val parsedMessageVertexCollection: ArangoVertexCollection
-    private val eventVertexCollection: ArangoVertexCollection
-    private val edgeCollection: ArangoEdgeCollection
+    private val rawMessageCollection: ArangoCollection
+    private val parsedMessageCollection: ArangoCollection
+    private val eventCollection: ArangoCollection
     private val eventRelationshipCollection: ArangoCollection
     private val parsedMessageRelationshipCollection: ArangoCollection
 
@@ -83,24 +92,20 @@ class Processor(
         initGraph(eventGraphEdgeDefinition)
         initGraph(messageGraphEdgeDefinition)
 
-        with(database.graph(Arango.EVENT_GRAPH)) {
-            edgeCollection = edgeCollection(Arango.EVENT_EDGES)
-            eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
-            parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
-            eventVertexCollection = vertexCollection(Arango.EVENT_COLLECTION)
-            rawMessageVertexCollection = vertexCollection(Arango.RAW_MESSAGE_COLLECTION)
-            parsedMessageVertexCollection = vertexCollection(Arango.PARSED_MESSAGE_COLLECTION)
-        }
+        eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
+        parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
+        eventCollection = database.collection(Arango.EVENT_COLLECTION)
+        rawMessageCollection = database.collection(Arango.RAW_MESSAGE_COLLECTION)
+        parsedMessageCollection = database.collection(Arango.PARSED_MESSAGE_COLLECTION)
     }
 
     var errors = 0;
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
-            var event = grpcEvent.toCacheEvent()
-            storeDocument(event)
-            if (grpcEvent.hasParentId()) {
-                storeEventRelationship(event)
-            }
+            batch.onEvent(grpcEvent)
+//            if (grpcEvent.hasParentId()) {
+//                storeEventRelationship(event)
+//            }
 //        if (event.attachedMessageIds !=null) {
 //            event.attachedMessageIds?.forEach { messageId ->
 //                // FIXME: maybe store as a batch
@@ -137,15 +142,15 @@ class Processor(
     }
 
     private fun storeDocument(event: Event) {
-        eventVertexCollection.insertVertex(event)
+        eventCollection.insertDocument(event)
     }
 
     private fun storeDocument(message: ParsedMessage) {
-        parsedMessageVertexCollection.insertVertex(message)
+        parsedMessageCollection.insertDocument(message)
     }
 
     private fun storeDocument(message: RawMessage) {
-        rawMessageVertexCollection.insertVertex(message)
+        rawMessageCollection.insertDocument(message)
     }
 
     private fun storeMessageRelationship(message: ParsedMessage) {
