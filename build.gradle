@@ -32,10 +32,11 @@ dependencies {
     api platform('com.exactpro.th2:bom:4.0.2')
     implementation 'com.exactpro.th2:cache-common:0.0.1-new-model-3881647454-95a823c-SNAPSHOT'
 
-    implementation 'com.exactpro.th2:grpc-common:4.0.0-th2-2150-books-pages-1606698156-SNAPSHOT'
-    implementation 'com.exactpro.th2:common:4.0.0-TH2-4262-reduce-load-book-and-page-3574992387-SNAPSHOT'
-    implementation 'com.exactpro.th2:common-utils:0.0.1-book-and-page-3572891451-SNAPSHOT'
-    implementation 'com.exactpro.th2:processor-core:0.0.2-TH2-4262-reduce-load-book-and-page-3854225246-7c20297-SNAPSHOT'
+    implementation("com.exactpro.th2:grpc-common:4.0.0-TH2-4262-reduce-load-book-and-page-3574839736-SNAPSHOT")
+    implementation("com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT")
+    implementation("com.exactpro.th2:common-utils:0.0.1-book-and-page-3607472196-SNAPSHOT")
+    implementation 'com.exactpro.th2:processor-core:0.1.0-TH2-4262-reduce-load-book-and-page-3899849388-e04ffb1-SNAPSHOT'
+    //'com.exactpro.th2:processor-core:0.0.2-TH2-4262-reduce-load-book-and-page-3854225246-7c20297-SNAPSHOT'
 
     implementation group: 'net.jpountz.lz4', name: 'lz4', version: '1.3.0'
     implementation 'io.github.microutils:kotlin-logging:3.0.4'

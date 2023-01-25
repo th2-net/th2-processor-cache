@@ -89,8 +89,8 @@ class Processor(
             .from(Arango.PARSED_MESSAGE_COLLECTION)
             .to(Arango.PARSED_MESSAGE_COLLECTION)
 
-        initGraph(eventGraphEdgeDefinition)
-        initGraph(messageGraphEdgeDefinition)
+        initGraph(Arango.EVENT_GRAPH, eventGraphEdgeDefinition)
+        initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
 
         eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
         parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
@@ -214,16 +214,17 @@ class Processor(
         }.getOrThrow()
     }
 
-    private fun initGraph(edgeDefinition: EdgeDefinition) {
-        val name = Arango.EVENT_GRAPH
-        val exists = database.graph(name).exists()
+    private fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
+        val graph = database.graph(name)
+        var exists = graph.exists()
         if (exists && recreateCollections) {
             K_LOGGER.info { "Dropping graph \"${name}\"" }
-            database.graph(Arango.EVENT_GRAPH).drop()
+            graph.drop()
         }
+        exists = graph.exists()
         if (!exists) {
             K_LOGGER.info { "Creating graph \"${name}\"" }
-            database.createGraph(Arango.EVENT_GRAPH, mutableListOf(edgeDefinition), null)
+            database.createGraph(name, mutableListOf(edgeDefinition), null)
         }
     }
 
@@ -233,11 +234,12 @@ class Processor(
             val type = it.value
             kotlin.runCatching {
                 val collection = database.collection(name)
-                val exists = collection.exists()
+                var exists = collection.exists()
                 if (exists && recreateCollections) {
                     K_LOGGER.info { "Dropping collection \"${name}\"" }
                     database.collection(name).drop()
                 }
+                exists = collection.exists()
                 if (!exists) {
                     K_LOGGER.info { "Creating collection \"${name}\"" }
                     database.createCollection(name, CollectionCreateOptions().type(type))
