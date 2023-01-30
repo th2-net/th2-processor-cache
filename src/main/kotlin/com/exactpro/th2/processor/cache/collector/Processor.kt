@@ -202,13 +202,11 @@ class Processor(
     private fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
         val graph = database.graph(name)
         var exists = graph.exists()
-        var flag = exists
         if (exists && recreateCollections) {
             K_LOGGER.info { "Dropping graph \"${name}\"" }
             graph.drop()
-            flag = false
+            exists = false
         }
-        exists = flag
         if (!exists) {
             K_LOGGER.info { "Creating graph \"${name}\"" }
             database.createGraph(name, mutableListOf(edgeDefinition), null)
@@ -222,13 +220,11 @@ class Processor(
             kotlin.runCatching {
                 val collection = database.collection(name)
                 var exists = collection.exists()
-                var flag = exists
                 if (exists && recreateCollections) {
                     K_LOGGER.info { "Dropping collection \"${name}\"" }
                     database.collection(name).drop()
-                    flag = false
+                    exists = false
                 }
-                exists = flag
                 if (!exists) {
                     K_LOGGER.info { "Creating collection \"${name}\"" }
                     database.createCollection(name, CollectionCreateOptions().type(type))
