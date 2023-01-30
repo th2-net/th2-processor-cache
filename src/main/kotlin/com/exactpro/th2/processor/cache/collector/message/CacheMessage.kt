@@ -63,7 +63,7 @@ internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
 }
 
 internal fun MessageID.format(): String {
-    val ts = timestamp.seconds
+    val ts = timestamp.toInstant().epochSecond
     if (subsequenceList.isEmpty()) {
         return "${bookName}:${connectionId.sessionAlias}:${ts}:${sequence}"
     }
@@ -79,6 +79,9 @@ internal fun com.exactpro.th2.common.grpc.RawMessageMetadata.toRawMessageMetadat
 }
 
 internal fun ParsedMessage.hasParentMessage(): Boolean {
-    val parentMessageId = this.id.dropLast(2)
-    return !parentMessageId.split(":").last().contains(".")
+    return subsequence.size > 1
+}
+
+internal fun ParsedMessage.getParentMessageId(): String {
+    return "${book}:${sessionAlias}:${timestamp}:${sequence}:${subsequence.dropLast(1).joinToString { "." }}"
 }

@@ -33,6 +33,7 @@ import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.cache.collector.event.format
 import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collector.message.format
+import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
@@ -58,14 +59,19 @@ class Processor(
     )
     private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
-        eventCollection.insertDocuments(grpcToCacheEvents)
-        eventRelationshipCollection.insertDocuments(grpcToCacheEvents.filter { el -> el.parentEventId != null }
-            .map { el -> BaseEdgeDocument().apply {
-                from = getEventKey(el.parentEventId!!)
-                to = getEventKey(el.eventId)
+        try {
+            eventCollection.insertDocuments(grpcToCacheEvents)
+            eventRelationshipCollection.insertDocuments(grpcToCacheEvents.filter { el -> el.parentEventId != null }
+                .map { el ->
+                    BaseEdgeDocument().apply {
+                        from = getEventKey(el.parentEventId!!)
+                        to = getEventKey(el.eventId)
+                    }
                 }
-            }
-        )
+            )
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
     }
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
@@ -156,7 +162,7 @@ class Processor(
 
     private fun storeMessageRelationship(message: ParsedMessage) {
         parsedMessageRelationshipCollection.insertDocument(BaseEdgeDocument().apply {
-            from = getMessageKey(message.id.dropLast(2))
+            from = getMessageKey(message.getParentMessageId())
             to = getMessageKey(message.id)
         })
     }
@@ -196,11 +202,13 @@ class Processor(
     private fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
         val graph = database.graph(name)
         var exists = graph.exists()
+        var flag = exists
         if (exists && recreateCollections) {
             K_LOGGER.info { "Dropping graph \"${name}\"" }
             graph.drop()
+            flag = false
         }
-        exists = graph.exists()
+        exists = flag
         if (!exists) {
             K_LOGGER.info { "Creating graph \"${name}\"" }
             database.createGraph(name, mutableListOf(edgeDefinition), null)
@@ -214,11 +222,13 @@ class Processor(
             kotlin.runCatching {
                 val collection = database.collection(name)
                 var exists = collection.exists()
+                var flag = exists
                 if (exists && recreateCollections) {
                     K_LOGGER.info { "Dropping collection \"${name}\"" }
                     database.collection(name).drop()
+                    flag = false
                 }
-                exists = collection.exists()
+                exists = flag
                 if (!exists) {
                     K_LOGGER.info { "Creating collection \"${name}\"" }
                     database.createCollection(name, CollectionCreateOptions().type(type))
