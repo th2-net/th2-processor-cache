@@ -65,9 +65,9 @@ internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
 internal fun MessageID.format(): String {
     val ts = timestamp.toInstant().epochSecond
     if (subsequenceList.isEmpty()) {
-        return "${bookName}:${connectionId.sessionAlias}:${ts}:${sequence}"
+        return "${bookName}:${connectionId.sessionAlias}:$direction:${ts}:${sequence}"
     }
-    return "${bookName}:${connectionId.sessionAlias}:${ts}:${sequence}:${subsequenceList.joinToString { "." }}"
+    return "${bookName}:${connectionId.sessionAlias}:$direction:${ts}:${sequence}:${subsequenceList.joinToString { "." }}"
 }
 
 internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadata() : ParsedMessageMetadata {
