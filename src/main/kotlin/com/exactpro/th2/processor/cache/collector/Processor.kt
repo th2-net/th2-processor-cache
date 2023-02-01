@@ -131,6 +131,7 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
         try {
+            K_LOGGER.info { "Handling parsed message with id ${grpcMessage.id.format()}" }
             var message = grpcMessage.toCacheMessage()
             storeDocument(message)
             if (message.hasParentMessage()) {
