@@ -22,13 +22,12 @@ import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
 import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
-import com.exactpro.th2.cache.common.event.Event
 import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
-import com.exactpro.th2.common.utils.message.id
+import com.exactpro.th2.common.utils.message.*
 import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.cache.collector.event.format
 import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
@@ -57,7 +56,18 @@ class Processor(
         1,
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
-    private val batch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
+//    private val parsedMessageBatch = Batcher<RawMessage>(maxBatchSize, maxFlushTime, executor) {
+//
+//    }
+    private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
+        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }
+        try {
+            rawMessageCollection.insertDocuments(grpcToRawMessages)
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
+    }
+    private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
         try {
             eventCollection.insertDocuments(grpcToCacheEvents)
@@ -116,7 +126,7 @@ class Processor(
     var errors = 0;
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
-            batch.onEvent(grpcEvent)
+            eventBatch.onEvent(grpcEvent)
 //        if (event.attachedMessageIds !=null) {
 //            event.attachedMessageIds?.forEach { messageId ->
 //                // FIXME: maybe store as a batch
@@ -145,8 +155,7 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcRawMessage) {
         try {
-            var message = grpcMessage.toCacheMessage()
-            storeDocument(message)
+            rawMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
