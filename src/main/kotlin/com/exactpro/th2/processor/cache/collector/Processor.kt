@@ -56,11 +56,24 @@ class Processor(
         1,
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
-//    private val parsedMessageBatch = Batcher<RawMessage>(maxBatchSize, maxFlushTime, executor) {
-//
-//    }
+    private val parsedMessageBatch = MessageBatcher(maxBatchSize, maxFlushTime, DIRECTION_SELECTOR, executor) {
+        val grpcToParsedMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
+        try {
+            parsedMessageCollection.insertDocuments(grpcToParsedMessages)
+            parsedMessageRelationshipCollection.insertDocuments(grpcToParsedMessages.filter { el -> el.hasParentMessage() }
+                .map { el ->
+                    BaseEdgeDocument().apply {
+                        from = getMessageKey(el.getParentMessageId())
+                        to = getMessageKey(el.id)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
+    }
     private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
-        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }
+        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
         try {
             rawMessageCollection.insertDocuments(grpcToRawMessages)
         } catch (e: Exception) {
@@ -142,11 +155,7 @@ class Processor(
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
         try {
             K_LOGGER.info { "Handling parsed message with id ${grpcMessage.id.format()}" }
-            var message = grpcMessage.toCacheMessage()
-            storeDocument(message)
-            if (message.hasParentMessage()) {
-                storeMessageRelationship(message)
-            }
+            parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
@@ -160,21 +169,6 @@ class Processor(
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcMessage.id.format()}, current number of errors = $errors", e )
         }
-    }
-
-    private fun storeDocument(message: ParsedMessage) {
-        parsedMessageCollection.insertDocument(message)
-    }
-
-    private fun storeDocument(message: RawMessage) {
-        rawMessageCollection.insertDocument(message)
-    }
-
-    private fun storeMessageRelationship(message: ParsedMessage) {
-        parsedMessageRelationshipCollection.insertDocument(BaseEdgeDocument().apply {
-            from = getMessageKey(message.getParentMessageId())
-            to = getMessageKey(message.id)
-        })
     }
 
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
