@@ -154,7 +154,6 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
         try {
-            K_LOGGER.info { "Handling parsed message with id ${grpcMessage.id.format()}" }
             parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
             errors++
