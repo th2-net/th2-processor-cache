@@ -26,6 +26,7 @@ import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
+import com.exactpro.th2.common.message.getField
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.*
 import com.exactpro.th2.processor.api.IProcessor
@@ -37,6 +38,7 @@ import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
+import com.google.protobuf.Descriptors.FieldDescriptor
 import mu.KotlinLogging
 import java.util.concurrent.*
 
@@ -154,6 +156,8 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
         try {
+            grpcMessage.getField("parentEventId")
+            grpcMessage.allFields
             parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
             errors++

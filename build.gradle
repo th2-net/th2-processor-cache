@@ -30,7 +30,7 @@ dependencies {
     kapt 'com.google.auto.service:auto-service:1.0.1'
 
     api platform('com.exactpro.th2:bom:4.0.2')
-    implementation 'com.exactpro.th2:cache-common:0.0.1-new-model-3881647454-95a823c-SNAPSHOT'
+    implementation 'com.exactpro.th2:cache-common:0.0.1-new-model-4123715578-70135af-SNAPSHOT'
 
     implementation("com.exactpro.th2:grpc-common:4.0.0-TH2-4262-reduce-load-book-and-page-3574839736-SNAPSHOT")
     implementation("com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT")
@@ -58,6 +58,12 @@ dependencies {
     implementation group: 'com.arangodb', name: 'arangodb-java-driver', version: '6.17.0'
     implementation("com.arangodb:velocypack:2.0.0")
     implementation("com.arangodb:jackson-dataformat-velocypack:3.0.0")
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
+
+    testImplementation 'org.mockito:mockito-core:5.1.1'
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
 }
 
 jar {

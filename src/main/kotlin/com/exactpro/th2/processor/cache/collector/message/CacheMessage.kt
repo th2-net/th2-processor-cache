@@ -40,8 +40,6 @@ internal fun GrpcParsedMessage.toCacheMessage(): ParsedMessage {
         subsequence = id.subsequenceList,
         timestamp = toArangoTimestamp(id.timestamp.toInstant()),
         attachedEventIds = emptySet(),
-        parsedMessageGroup = null,
-        imageType = null,
         metadata = metadata.toParsedMessageMetadata()
     )
 }
@@ -57,7 +55,6 @@ internal fun GrpcRawMessage.toCacheMessage(): RawMessage {
         timestamp = toArangoTimestamp(id.timestamp.toInstant()),
         attachedEventIds = emptySet(),
         body = body.toByteArray(),
-        imageType = null,
         metadata = metadata.toRawMessageMetadata()
     )
 }
@@ -68,7 +65,7 @@ internal fun MessageID.format(): String {
     if (subsequenceList.isEmpty()) {
         return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}"
     }
-    return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}:${subsequenceList.joinToString { "." }}"
+    return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}:${subsequenceList.joinToString("." )}"
 }
 
 internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadata() : ParsedMessageMetadata {
