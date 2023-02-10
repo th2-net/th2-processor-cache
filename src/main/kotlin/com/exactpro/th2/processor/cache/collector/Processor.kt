@@ -156,8 +156,6 @@ class Processor(
 
     override fun handle(intervalEventId: EventID, grpcMessage: GrpcParsedMessage) {
         try {
-            grpcMessage.getField("parentEventId")
-            grpcMessage.allFields
             parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
             errors++
