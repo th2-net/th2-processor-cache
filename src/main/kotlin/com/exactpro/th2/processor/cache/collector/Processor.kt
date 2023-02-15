@@ -16,14 +16,13 @@
 
 package com.exactpro.th2.processor.cache.collector
 
-import com.arangodb.*
+import com.arangodb.ArangoCollection
+import com.arangodb.ArangoDatabase
 import com.arangodb.entity.BaseEdgeDocument
 import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
 import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
-import com.exactpro.th2.cache.common.message.ParsedMessage
-import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
@@ -38,7 +37,7 @@ import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import mu.KotlinLogging
-import java.util.concurrent.*
+import java.util.concurrent.Executors
 
 typealias GrpcEvent = com.exactpro.th2.common.grpc.Event
 typealias GrpcParsedMessage = com.exactpro.th2.common.grpc.Message
