@@ -71,7 +71,7 @@ internal fun MessageID.format(): String {
     if (subsequenceList.isEmpty()) {
         return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}"
     }
-    return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}:${subsequenceList.joinToString { "." }}"
+    return "${bookName}:${connectionId.sessionAlias}:$dr:${ts}:${sequence}:${subsequenceList.joinToString(".")}"
 }
 
 internal fun com.exactpro.th2.common.grpc.MessageMetadata.toParsedMessageMetadata() : ParsedMessageMetadata {
