@@ -25,7 +25,6 @@ import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.common.event.Event.Status
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.common.message.getField
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.*
 import com.exactpro.th2.processor.api.IProcessor
@@ -37,7 +36,6 @@ import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-import com.google.protobuf.Descriptors.FieldDescriptor
 import mu.KotlinLogging
 import java.util.concurrent.Executors
 
