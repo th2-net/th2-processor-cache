@@ -58,6 +58,11 @@ dependencies {
     implementation group: 'com.arangodb', name: 'arangodb-java-driver', version: '6.17.0'
     implementation("com.arangodb:velocypack:2.0.0")
     implementation("com.arangodb:jackson-dataformat-velocypack:3.0.0")
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
+    testImplementation 'org.mockito:mockito-core:5.1.1'
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.8.2")
 }
 
 jar {
