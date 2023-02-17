@@ -18,7 +18,7 @@ package com.exactpro.th2.processor.cache.collector
 
 import com.exactpro.th2.common.grpc.Value
 
-class CustomSimpleJsonFormatter : AbstractJsonFormatter() {
+class CustomProtoJsonFormatter : AbstractJsonFormatter() {
     override fun printV(value: Value, sb: StringBuilder) {
         when (value.kindCase) {
             Value.KindCase.NULL_VALUE -> sb.append("null")
