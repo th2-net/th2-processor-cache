@@ -43,9 +43,8 @@ class Factory : IProcessorFactory {
                     "Settings type mismatch expected: ${Settings::class}, actual: ${settings::class}"
                 }
                 return Processor(
-                    eventBatcher,
-                    processorEventId,
                     settings,
+                    ArangoDB(eventBatcher, processorEventId, settings)
                 )
             }
         }

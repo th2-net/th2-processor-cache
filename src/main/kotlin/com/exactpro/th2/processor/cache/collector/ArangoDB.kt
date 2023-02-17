@@ -23,72 +23,21 @@ import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
 import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
+import com.exactpro.th2.cache.common.message.ParsedMessage
+import com.exactpro.th2.cache.common.message.RawMessage
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
-import com.exactpro.th2.common.utils.message.DIRECTION_SELECTOR
-import com.exactpro.th2.common.utils.message.MessageBatcher
-import com.exactpro.th2.common.utils.message.RAW_DIRECTION_SELECTOR
-import com.exactpro.th2.common.utils.message.RawMessageBatcher
-import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
-import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
 import com.exactpro.th2.processor.utility.log
-import com.google.common.util.concurrent.ThreadFactoryBuilder
-import java.util.concurrent.Executors
+import mu.KotlinLogging
 
 class ArangoDB(
     private val eventBatcher: EventBatcher,
     processorEventId: EventID,
     settings: Settings
 ) {
-    private val maxBatchSize: Int = settings.maxBatchSize
-    private val maxFlushTime: Long = settings.maxFlushTime
-    private val executor = Executors.newScheduledThreadPool(
-        1,
-        ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
-    )
-    val parsedMessageBatch = MessageBatcher(maxBatchSize, maxFlushTime, DIRECTION_SELECTOR, executor) {
-        val grpcToParsedMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
-        try {
-            parsedMessageCollection.insertDocuments(grpcToParsedMessages)
-            parsedMessageRelationshipCollection.insertDocuments(grpcToParsedMessages.filter { el -> el.hasParentMessage() }
-                .map { el ->
-                    BaseEdgeDocument().apply {
-                        from = getMessageKey(el.getParentMessageId())
-                        to = getMessageKey(el.id)
-                    }
-                }
-            )
-        } catch (e: Exception) {
-            Processor.K_LOGGER.error { "${e.message}" }
-        }
-    }
-    val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
-        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
-        try {
-            rawMessageCollection.insertDocuments(grpcToRawMessages)
-        } catch (e: Exception) {
-            Processor.K_LOGGER.error { "${e.message}" }
-        }
-    }
-    val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
-        val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
-        try {
-            eventCollection.insertDocuments(grpcToCacheEvents)
-            eventRelationshipCollection.insertDocuments(grpcToCacheEvents.filter { el -> el.parentEventId != null }
-                .map { el ->
-                    BaseEdgeDocument().apply {
-                        from = getEventKey(el.parentEventId!!)
-                        to = getEventKey(el.eventId)
-                    }
-                }
-            )
-        } catch (e: Exception) {
-            Processor.K_LOGGER.error { "${e.message}" }
-        }
-    }
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
     private val database: ArangoDatabase = arango.getDatabase()
@@ -142,20 +91,20 @@ class ArangoDB(
                 eventBatcher.onEvent(
                     EventBuilder.start()
                         .name("Created ${database.dbName()} database")
-                        .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                        .type(EVENT_TYPE_INIT_DATABASE)
                         .toProto(reportEventId)
-                        .log(Processor.K_LOGGER)
+                        .log(K_LOGGER)
                 )
             }
         }.onFailure { e ->
             eventBatcher.onEvent(
                 EventBuilder.start()
                     .name("Failed to create ${database.dbName()} database")
-                    .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                    .type(EVENT_TYPE_INIT_DATABASE)
                     .status(Event.Status.FAILED)
                     .exception(e, true)
                     .toProto(reportEventId)
-                    .log(Processor.K_LOGGER)
+                    .log(K_LOGGER)
             )
             throw e
         }.getOrThrow()
@@ -165,12 +114,12 @@ class ArangoDB(
         val graph = database.graph(name)
         var exists = graph.exists()
         if (exists && recreateCollections) {
-            Processor.K_LOGGER.info { "Dropping graph \"${name}\"" }
+            K_LOGGER.info { "Dropping graph \"${name}\"" }
             graph.drop()
             exists = false
         }
         if (!exists) {
-            Processor.K_LOGGER.info { "Creating graph \"${name}\"" }
+            K_LOGGER.info { "Creating graph \"${name}\"" }
             database.createGraph(name, mutableListOf(edgeDefinition), null)
         }
     }
@@ -183,34 +132,79 @@ class ArangoDB(
                 val collection = database.collection(name)
                 var exists = collection.exists()
                 if (exists && recreateCollections) {
-                    Processor.K_LOGGER.info { "Dropping collection \"${name}\"" }
+                    K_LOGGER.info { "Dropping collection \"${name}\"" }
                     database.collection(name).drop()
                     exists = false
                 }
                 if (!exists) {
-                    Processor.K_LOGGER.info { "Creating collection \"${name}\"" }
+                    K_LOGGER.info { "Creating collection \"${name}\"" }
                     database.createCollection(name, CollectionCreateOptions().type(type))
                 }
             }.onFailure { e ->
                 eventBatcher.onEvent(
                     EventBuilder.start()
                         .name("Failed to create $name:$type collection")
-                        .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                        .type(EVENT_TYPE_INIT_DATABASE)
                         .status(Event.Status.FAILED)
                         .exception(e, true)
                         .toProto(reportEventId)
-                        .log(Processor.K_LOGGER)
+                        .log(K_LOGGER)
                 )
                 throw e
             }.onSuccess {
                 eventBatcher.onEvent(
                     EventBuilder.start()
                         .name("Recreated $name:$type collection")
-                        .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                        .type(EVENT_TYPE_INIT_DATABASE)
                         .toProto(reportEventId)
-                        .log(Processor.K_LOGGER)
+                        .log(K_LOGGER)
                 )
             }.getOrThrow()
         }
+    }
+
+    internal fun insertParsedMessages(messages: List<ParsedMessage>) {
+        try {
+            parsedMessageCollection.insertDocuments(messages)
+            parsedMessageRelationshipCollection.insertDocuments(messages.filter { el -> el.hasParentMessage() }
+                .map { el ->
+                    BaseEdgeDocument().apply {
+                        from = getMessageKey(el.getParentMessageId())
+                        to = getMessageKey(el.id)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
+    }
+
+    internal fun insertRawMessages(messages: List<RawMessage>) {
+        try {
+            rawMessageCollection.insertDocuments(messages)
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
+    }
+
+    internal fun insertEvents(events: List<com.exactpro.th2.cache.common.event.Event>) {
+        try {
+            eventCollection.insertDocuments(events)
+            eventRelationshipCollection.insertDocuments(events.filter { el -> el.parentEventId != null }
+                .map { el ->
+                    BaseEdgeDocument().apply {
+                        from = getEventKey(el.parentEventId!!)
+                        to = getEventKey(el.eventId)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            K_LOGGER.error { "${e.message}" }
+        }
+    }
+
+    companion object {
+        val K_LOGGER = KotlinLogging.logger {}
+        const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
     }
 }
