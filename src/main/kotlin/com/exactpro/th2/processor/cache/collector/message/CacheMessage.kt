@@ -87,5 +87,5 @@ internal fun ParsedMessage.hasParentMessage(): Boolean {
 }
 
 internal fun ParsedMessage.getParentMessageId(): String {
-    return "${book}:${sessionAlias}:${timestamp}:${sequence}:${subsequence.dropLast(1).joinToString { "." }}"
+    return "${book}:${sessionAlias}:${timestamp}:${sequence}:${subsequence.dropLast(1).joinToString("." )}"
 }
