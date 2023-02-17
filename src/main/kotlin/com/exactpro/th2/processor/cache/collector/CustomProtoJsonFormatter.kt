@@ -1,5 +1,5 @@
-/*******************************************************************************
- * Copyright 2021-2021 Exactpro (Exactpro Systems Limited)
+/*
+ * Copyright 2022 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,49 +12,27 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- ******************************************************************************/
+ */
 
 package com.exactpro.th2.processor.cache.collector
 
 import com.exactpro.th2.common.grpc.Value
 
-class CustomProtoJsonFormatter : AbstractJsonFormatter() {
-
-    companion object {
-        internal const val QUOTE_CHAR = '"'.code
-        internal const val BACK_SLASH = '\\'.code
-    }
-
-    override fun printV (value: Value, sb: StringBuilder) {
+class CustomSimpleJsonFormatter : AbstractJsonFormatter() {
+    override fun printV(value: Value, sb: StringBuilder) {
         when (value.kindCase) {
-            Value.KindCase.SIMPLE_VALUE -> {
-                sb.append("{\"simpleValue\":")
-                convertStringToJson(value.simpleValue, sb)
-                sb.append('}')
-            }
+            Value.KindCase.NULL_VALUE -> sb.append("null")
+            Value.KindCase.SIMPLE_VALUE -> convertStringToJson(value.simpleValue, sb)
+            Value.KindCase.MESSAGE_VALUE -> printM(value.messageValue, sb)
             Value.KindCase.LIST_VALUE -> {
-                sb.append("{\"listValue\":{\"values\":[")
-                val valuesList = value.listValue.valuesList
-                if (valuesList.isNotEmpty()) {
-                    valuesList.forEach {
-                        printV(it, sb)
-                        sb.append(',')
-                    }
-                    sb.setLength(sb.length - 1)
+                sb.append("[")
+                for ((count, element) in value.listValue.valuesList.withIndex()) {
+                    if (count > 0) sb.append(',')
+                    printV(element, sb)
                 }
-                sb.append("]}}")
+                sb.append(']')
             }
-            Value.KindCase.MESSAGE_VALUE -> {
-                sb.append("{\"messageValue\":")
-                printM(value.messageValue, sb)
-                sb.append('}')
-            }
-            Value.KindCase.NULL_VALUE -> {
-                sb.append("{\"nullValue\":\"NULL_VALUE\"}")
-            }
-            else -> {
-            }
+            Value.KindCase.KIND_NOT_SET, null -> error("unexpected kind ${value.kindCase}")
         }
     }
-
 }
