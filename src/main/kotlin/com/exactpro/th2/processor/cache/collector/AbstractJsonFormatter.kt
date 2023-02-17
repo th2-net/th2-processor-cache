@@ -37,7 +37,6 @@ abstract class AbstractJsonFormatter : JsonFormatter {
 
     protected fun printM (msg: Message, sb: StringBuilder) {
         sb.append("{")
-        sb.append("\"fields\":{")
         val fieldsMap = msg.fieldsMap
         if (fieldsMap.isNotEmpty()) {
             for (entry in fieldsMap.entries) {
@@ -47,8 +46,7 @@ abstract class AbstractJsonFormatter : JsonFormatter {
             }
             sb.setLength(sb.length - 1)
         }
-        sb.append('}').append('}')
-
+        sb.append('}')
     }
 
     private fun isNeedToEscape(s: String): Boolean {
