@@ -19,6 +19,12 @@ package com.exactpro.th2.processor.cache.collector
 import com.exactpro.th2.common.grpc.Value
 
 class CustomProtoJsonFormatter : AbstractJsonFormatter() {
+
+    companion object {
+        internal const val QUOTE_CHAR = '"'.code
+        internal const val BACK_SLASH = '\\'.code
+    }
+
     override fun printV(value: Value, sb: StringBuilder) {
         when (value.kindCase) {
             Value.KindCase.NULL_VALUE -> sb.append("null")
