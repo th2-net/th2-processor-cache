@@ -48,24 +48,22 @@ class ArangoDB(
 
     private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
 
-    internal fun initCollections(reportEventId: EventID) {
-        initCollections(reportEventId, mapOf(
-            Arango.EVENT_COLLECTION to CollectionType.DOCUMENT,
-            Arango.RAW_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
-            Arango.PARSED_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
-            Arango.EVENT_EDGES to CollectionType.EDGES,
-            Arango.MESSAGE_EDGES to CollectionType.EDGES
-            )
-        )
 
-        eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
-        parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
-        eventCollection = database.collection(Arango.EVENT_COLLECTION)
-        rawMessageCollection = database.collection(Arango.RAW_MESSAGE_COLLECTION)
-        parsedMessageCollection = database.collection(Arango.PARSED_MESSAGE_COLLECTION)
+    internal fun prepareDatabase() {
+        createDB();
+        initCollections();
+        initGraphs();
     }
 
-    internal fun initGraphs() {
+    private fun initCollections() {
+        eventCollection = prepareCollection(Arango.EVENT_COLLECTION, CollectionType.DOCUMENT);
+        rawMessageCollection = prepareCollection(Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT);
+        parsedMessageCollection = prepareCollection(Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT);
+        eventRelationshipCollection = prepareCollection(Arango.EVENT_EDGES, CollectionType.EDGES);
+        parsedMessageRelationshipCollection = prepareCollection(Arango.MESSAGE_EDGES, CollectionType.EDGES);
+    }
+
+    private fun initGraphs() {
         val eventGraphEdgeDefinition: EdgeDefinition = EdgeDefinition()
             .collection(Arango.EVENT_EDGES)
             .from(Arango.EVENT_COLLECTION)
@@ -80,7 +78,7 @@ class ArangoDB(
         initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
     }
 
-    internal fun createDB() {
+    private fun createDB() {
         if (!database.exists()) {
             database.create()
         }
@@ -90,39 +88,32 @@ class ArangoDB(
         val graph = database.graph(name)
         var exists = graph.exists()
         if (exists && recreateCollections) {
-            K_LOGGER.info { "Dropping graph \"${name}\"" }
+            LOGGER.info { "Dropping graph \"${name}\"" }
             graph.drop()
             exists = false
         }
         if (!exists) {
-            K_LOGGER.info { "Creating graph \"${name}\"" }
+            LOGGER.info { "Creating graph \"${name}\"" }
             database.createGraph(name, mutableListOf(edgeDefinition), null)
         }
     }
 
-    private fun initCollections(reportEventId: EventID, collections: Map<String, CollectionType>) {
-        collections.forEach {
-            val name = it.key
-            val type = it.value
-            kotlin.runCatching {
-                val collection = database.collection(name)
-                var exists = collection.exists()
-                if (exists && recreateCollections) {
-                    K_LOGGER.info { "Dropping collection \"${name}\"" }
-                    database.collection(name).drop()
-                    exists = false
-                }
-                if (!exists) {
-                    K_LOGGER.info { "Creating collection \"${name}\"" }
-                    database.createCollection(name, CollectionCreateOptions().type(type))
-                }
-            }.onFailure { e ->
-                throw e
-            }.onSuccess {
-
-            }.getOrThrow()
+    private fun prepareCollection(name: String, type: CollectionType):ArangoCollection {
+        val collection = database.collection(name)
+        var exists = collection.exists()
+        if (exists && recreateCollections) {
+            LOGGER.debug { "Dropping collection \"${name}\"" }
+            database.collection(name).drop()
+            exists = false
         }
+        if (!exists) {
+            LOGGER.debug { "Creating collection \"${name}\"" }
+            database.createCollection(name, CollectionCreateOptions().type(type))
+        }
+        return database.collection(name);
     }
+
+
 
     internal fun insertParsedMessages(messages: List<ParsedMessage>) {
         try {
@@ -136,7 +127,7 @@ class ArangoDB(
                 }
             )
         } catch (e: Exception) {
-            K_LOGGER.error { "${e.message}" }
+            LOGGER.error { "${e.message}" }
         }
     }
 
@@ -144,7 +135,7 @@ class ArangoDB(
         try {
             rawMessageCollection.insertDocuments(messages)
         } catch (e: Exception) {
-            K_LOGGER.error { "${e.message}" }
+            LOGGER.error { "${e.message}" }
         }
     }
 
@@ -160,11 +151,11 @@ class ArangoDB(
                 }
             )
         } catch (e: Exception) {
-            K_LOGGER.error { "${e.message}" }
+            LOGGER.error { "${e.message}" }
         }
     }
 
     companion object {
-        val K_LOGGER = KotlinLogging.logger {}
+        val LOGGER = KotlinLogging.logger {}
     }
 }

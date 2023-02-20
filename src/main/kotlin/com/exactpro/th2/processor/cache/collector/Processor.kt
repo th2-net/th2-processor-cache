@@ -16,9 +16,6 @@
 
 package com.exactpro.th2.processor.cache.collector
 
-import com.arangodb.entity.CollectionType
-import com.arangodb.entity.EdgeDefinition
-import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
@@ -65,47 +62,23 @@ class Processor(
 
     internal fun init() {
         try {
-            arangoDB.createDB()
+            arangoDB.prepareDatabase();
             eventBatcher.onEvent(
                 EventBuilder.start()
-                    .name("Created ${arangoDB.database.dbName()} database")
+                    .name("Database ${arangoDB.database.dbName()} prepared")
                     .type(EVENT_TYPE_INIT_DATABASE)
                     .toProto(processorEventId)
-                    .log(ArangoDB.K_LOGGER)
+                    .log(ArangoDB.LOGGER)
             )
         } catch (e: Exception) {
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Failed to create ${arangoDB.database.dbName()} database")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Event.Status.FAILED)
-                    .exception(e, true)
-                    .toProto(processorEventId)
-                    .log(ArangoDB.K_LOGGER)
-            )
-            throw e
-        }
-        try {
-            arangoDB.initCollections(processorEventId)
-            arangoDB.initGraphs()
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Recreated collection")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .toProto(processorEventId)
-                    .log(K_LOGGER)
-            )
-        } catch (e: Exception) {
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Failed to create collection")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Event.Status.FAILED)
-                    .exception(e, true)
-                    .toProto(processorEventId)
-                    .log(K_LOGGER)
-            )
-            throw e
+            EventBuilder.start()
+                .name("Failed to prepare database ${arangoDB.database.dbName()}")
+                .type(EVENT_TYPE_INIT_DATABASE)
+                .status(Event.Status.FAILED)
+                .exception(e, true)
+                .toProto(processorEventId)
+                .log(ArangoDB.LOGGER);
+            throw e;
         }
     }
 
