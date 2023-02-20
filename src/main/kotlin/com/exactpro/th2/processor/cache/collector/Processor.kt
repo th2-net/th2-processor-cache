@@ -16,6 +16,10 @@
 
 package com.exactpro.th2.processor.cache.collector
 
+import com.arangodb.entity.CollectionType
+import com.arangodb.entity.EdgeDefinition
+import com.exactpro.th2.cache.common.Arango
+import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.*
@@ -24,6 +28,7 @@ import com.exactpro.th2.processor.cache.collector.event.format
 import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collector.message.format
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
+import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import mu.KotlinLogging
 import java.util.concurrent.Executors
@@ -34,8 +39,10 @@ typealias GrpcRawMessage = com.exactpro.th2.common.grpc.RawMessage
 typealias EventBuilder = com.exactpro.th2.common.event.Event
 
 class Processor(
+    private val eventBatcher: EventBatcher,
+    private val processorEventId: EventID,
     settings: Settings,
-    arangoDB: ArangoDB
+    private val arangoDB: ArangoDB
 ) : IProcessor {
     private val maxBatchSize: Int = settings.maxBatchSize
     private val maxFlushTime: Long = settings.maxFlushTime
@@ -54,6 +61,37 @@ class Processor(
     private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
         arangoDB.insertEvents(grpcToCacheEvents)
+    }
+
+    internal fun init() {
+        try {
+            arangoDB.createDB()
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Created ${arangoDB.database.dbName()} database")
+                    .type(ArangoDB.EVENT_TYPE_INIT_DATABASE)
+                    .toProto(processorEventId)
+                    .log(ArangoDB.K_LOGGER)
+            )
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to create ${arangoDB.database.dbName()} database")
+                    .type(ArangoDB.EVENT_TYPE_INIT_DATABASE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(ArangoDB.K_LOGGER)
+            )
+        }
+        arangoDB.initCollections(processorEventId)
+        arangoDB.initGraphs()
+
+        arangoDB.eventRelationshipCollection = arangoDB.database.collection(Arango.EVENT_EDGES)
+        arangoDB.parsedMessageRelationshipCollection = arangoDB.database.collection(Arango.MESSAGE_EDGES)
+        arangoDB.eventCollection = arangoDB.database.collection(Arango.EVENT_COLLECTION)
+        arangoDB.rawMessageCollection = arangoDB.database.collection(Arango.RAW_MESSAGE_COLLECTION)
+        arangoDB.parsedMessageCollection = arangoDB.database.collection(Arango.PARSED_MESSAGE_COLLECTION)
     }
 
     var errors = 0;

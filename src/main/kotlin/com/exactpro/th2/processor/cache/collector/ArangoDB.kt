@@ -25,39 +25,39 @@ import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
-import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
-import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
-import com.exactpro.th2.processor.utility.log
 import mu.KotlinLogging
 
 class ArangoDB(
-    private val eventBatcher: EventBatcher,
-    processorEventId: EventID,
     settings: Settings
 ) {
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
-    private val database: ArangoDatabase = arango.getDatabase()
-    private val rawMessageCollection: ArangoCollection
-    private val parsedMessageCollection: ArangoCollection
-    private val eventCollection: ArangoCollection
-    private val eventRelationshipCollection: ArangoCollection
-    private val parsedMessageRelationshipCollection: ArangoCollection
+    internal val database: ArangoDatabase = arango.getDatabase()
+    internal lateinit var rawMessageCollection: ArangoCollection
+    internal lateinit var parsedMessageCollection: ArangoCollection
+    internal lateinit var eventCollection: ArangoCollection
+    internal lateinit var eventRelationshipCollection: ArangoCollection
+    internal lateinit var parsedMessageRelationshipCollection: ArangoCollection
 
-    init {
-        createDB(processorEventId)
+    private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
-        initCollections(processorEventId, mapOf(
+    private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
+
+    internal fun initCollections(reportEventId: EventID) {
+        initCollections(reportEventId, mapOf(
             Arango.EVENT_COLLECTION to CollectionType.DOCUMENT,
             Arango.RAW_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
             Arango.PARSED_MESSAGE_COLLECTION to CollectionType.DOCUMENT,
             Arango.EVENT_EDGES to CollectionType.EDGES,
             Arango.MESSAGE_EDGES to CollectionType.EDGES
-        ))
+            )
+        )
+    }
 
+    internal fun initGraphs() {
         val eventGraphEdgeDefinition: EdgeDefinition = EdgeDefinition()
             .collection(Arango.EVENT_EDGES)
             .from(Arango.EVENT_COLLECTION)
@@ -70,44 +70,12 @@ class ArangoDB(
 
         initGraph(Arango.EVENT_GRAPH, eventGraphEdgeDefinition)
         initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
-
-        eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
-        parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
-        eventCollection = database.collection(Arango.EVENT_COLLECTION)
-        rawMessageCollection = database.collection(Arango.RAW_MESSAGE_COLLECTION)
-        parsedMessageCollection = database.collection(Arango.PARSED_MESSAGE_COLLECTION)
     }
 
-    private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
-
-    private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
-
-    private fun createDB(
-        reportEventId: EventID,
-    ) {
-        runCatching {
-            if (!database.exists()) {
-                database.create()
-                eventBatcher.onEvent(
-                    EventBuilder.start()
-                        .name("Created ${database.dbName()} database")
-                        .type(EVENT_TYPE_INIT_DATABASE)
-                        .toProto(reportEventId)
-                        .log(K_LOGGER)
-                )
-            }
-        }.onFailure { e ->
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Failed to create ${database.dbName()} database")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .status(Event.Status.FAILED)
-                    .exception(e, true)
-                    .toProto(reportEventId)
-                    .log(K_LOGGER)
-            )
-            throw e
-        }.getOrThrow()
+    internal fun createDB() {
+        if (!database.exists()) {
+            database.create()
+        }
     }
 
     private fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
@@ -141,24 +109,9 @@ class ArangoDB(
                     database.createCollection(name, CollectionCreateOptions().type(type))
                 }
             }.onFailure { e ->
-                eventBatcher.onEvent(
-                    EventBuilder.start()
-                        .name("Failed to create $name:$type collection")
-                        .type(EVENT_TYPE_INIT_DATABASE)
-                        .status(Event.Status.FAILED)
-                        .exception(e, true)
-                        .toProto(reportEventId)
-                        .log(K_LOGGER)
-                )
                 throw e
             }.onSuccess {
-                eventBatcher.onEvent(
-                    EventBuilder.start()
-                        .name("Recreated $name:$type collection")
-                        .type(EVENT_TYPE_INIT_DATABASE)
-                        .toProto(reportEventId)
-                        .log(K_LOGGER)
-                )
+
             }.getOrThrow()
         }
     }

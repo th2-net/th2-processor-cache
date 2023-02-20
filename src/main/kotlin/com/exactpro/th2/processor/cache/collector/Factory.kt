@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Exactpro (Exactpro Systems Limited)
+ * Copyright 2023 Exactpro (Exactpro Systems Limited)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,10 +42,14 @@ class Factory : IProcessorFactory {
                 check(settings is Settings) {
                     "Settings type mismatch expected: ${Settings::class}, actual: ${settings::class}"
                 }
-                return Processor(
+                val processor = Processor(
+                    eventBatcher,
+                    processorEventId,
                     settings,
-                    ArangoDB(eventBatcher, processorEventId, settings)
+                    ArangoDB(settings)
                 )
+                processor.init()
+                return processor
             }
         }
     }
