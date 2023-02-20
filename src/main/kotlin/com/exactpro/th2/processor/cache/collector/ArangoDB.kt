@@ -25,7 +25,6 @@ import com.arangodb.model.CollectionCreateOptions
 import com.exactpro.th2.cache.common.Arango
 import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
-import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import mu.KotlinLogging
