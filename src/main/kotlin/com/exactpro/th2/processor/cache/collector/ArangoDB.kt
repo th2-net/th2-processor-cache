@@ -35,12 +35,14 @@ class ArangoDB(
 ) {
     private val recreateCollections: Boolean = settings.recreateCollections
     private val arango: Arango = Arango(settings.arangoCredentials)
+
     internal val database: ArangoDatabase = arango.getDatabase()
-    internal lateinit var rawMessageCollection: ArangoCollection
-    internal lateinit var parsedMessageCollection: ArangoCollection
-    internal lateinit var eventCollection: ArangoCollection
-    internal lateinit var eventRelationshipCollection: ArangoCollection
-    internal lateinit var parsedMessageRelationshipCollection: ArangoCollection
+
+    private lateinit var rawMessageCollection: ArangoCollection
+    private lateinit var parsedMessageCollection: ArangoCollection
+    private lateinit var eventCollection: ArangoCollection
+    private lateinit var eventRelationshipCollection: ArangoCollection
+    private lateinit var parsedMessageRelationshipCollection: ArangoCollection
 
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
@@ -55,6 +57,12 @@ class ArangoDB(
             Arango.MESSAGE_EDGES to CollectionType.EDGES
             )
         )
+
+        eventRelationshipCollection = database.collection(Arango.EVENT_EDGES)
+        parsedMessageRelationshipCollection = database.collection(Arango.MESSAGE_EDGES)
+        eventCollection = database.collection(Arango.EVENT_COLLECTION)
+        rawMessageCollection = database.collection(Arango.RAW_MESSAGE_COLLECTION)
+        parsedMessageCollection = database.collection(Arango.PARSED_MESSAGE_COLLECTION)
     }
 
     internal fun initGraphs() {
@@ -158,6 +166,5 @@ class ArangoDB(
 
     companion object {
         val K_LOGGER = KotlinLogging.logger {}
-        const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
     }
 }

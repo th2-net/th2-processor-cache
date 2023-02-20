@@ -69,7 +69,7 @@ class Processor(
             eventBatcher.onEvent(
                 EventBuilder.start()
                     .name("Created ${arangoDB.database.dbName()} database")
-                    .type(ArangoDB.EVENT_TYPE_INIT_DATABASE)
+                    .type(EVENT_TYPE_INIT_DATABASE)
                     .toProto(processorEventId)
                     .log(ArangoDB.K_LOGGER)
             )
@@ -77,21 +77,34 @@ class Processor(
             eventBatcher.onEvent(
                 EventBuilder.start()
                     .name("Failed to create ${arangoDB.database.dbName()} database")
-                    .type(ArangoDB.EVENT_TYPE_INIT_DATABASE)
+                    .type(EVENT_TYPE_INIT_DATABASE)
                     .status(Event.Status.FAILED)
                     .exception(e, true)
                     .toProto(processorEventId)
                     .log(ArangoDB.K_LOGGER)
             )
         }
-        arangoDB.initCollections(processorEventId)
-        arangoDB.initGraphs()
-
-        arangoDB.eventRelationshipCollection = arangoDB.database.collection(Arango.EVENT_EDGES)
-        arangoDB.parsedMessageRelationshipCollection = arangoDB.database.collection(Arango.MESSAGE_EDGES)
-        arangoDB.eventCollection = arangoDB.database.collection(Arango.EVENT_COLLECTION)
-        arangoDB.rawMessageCollection = arangoDB.database.collection(Arango.RAW_MESSAGE_COLLECTION)
-        arangoDB.parsedMessageCollection = arangoDB.database.collection(Arango.PARSED_MESSAGE_COLLECTION)
+        try {
+            arangoDB.initCollections(processorEventId)
+            arangoDB.initGraphs()
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Recreated collection")
+                    .type(EVENT_TYPE_INIT_DATABASE)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to create collection")
+                    .type(EVENT_TYPE_INIT_DATABASE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        }
     }
 
     var errors = 0;
@@ -130,5 +143,6 @@ class Processor(
 
     companion object {
         val K_LOGGER = KotlinLogging.logger {}
+        const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
     }
 }
