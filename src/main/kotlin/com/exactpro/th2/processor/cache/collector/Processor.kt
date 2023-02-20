@@ -83,6 +83,7 @@ class Processor(
                     .toProto(processorEventId)
                     .log(ArangoDB.K_LOGGER)
             )
+            throw e
         }
         try {
             arangoDB.initCollections(processorEventId)
@@ -104,6 +105,7 @@ class Processor(
                     .toProto(processorEventId)
                     .log(K_LOGGER)
             )
+            throw e
         }
     }
 
