@@ -17,18 +17,22 @@
 package com.exactpro.th2.processor.cache.collector.message
 
 import com.exactpro.th2.cache.common.message.ParsedMessage
+import com.exactpro.th2.cache.common.toArangoTimestamp
 import com.exactpro.th2.common.grpc.*
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.sequence
 import com.exactpro.th2.common.message.subsequence
+import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.common.utils.message.direction
 import com.exactpro.th2.common.utils.message.sessionAlias
 import com.exactpro.th2.common.utils.message.sessionGroup
+import com.exactpro.th2.common.utils.message.timestamp
 import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.Timestamp
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class TestCacheMessage {
@@ -76,34 +80,45 @@ class TestCacheMessage {
         .setMetadata(rawMessageMetadata)
         .build()
 
+    private fun GrpcParsedMessage.getBody(): Map<String, Any> {
+        val jsonString = CustomProtoJsonFormatter().print(this)
+        return ObjectMapper().readValue(jsonString, Map::class.java) as Map<String, Any>
+    }
+
     private fun compare(cacheParsedMessage: ParsedMessage) {
-        assert(cacheParsedMessage.book == messageId.bookName)
-        assert(cacheParsedMessage.group == grpcMessage.sessionGroup)
-        assert(cacheParsedMessage.sessionAlias == grpcMessage.sessionAlias)
-        assert(cacheParsedMessage.direction == grpcMessage.direction.toString())
-        assert(cacheParsedMessage.sequence == grpcMessage.sequence)
-        assert(cacheParsedMessage.subsequence == grpcMessage.subsequence)
-        assert(cacheParsedMessage.metadata.messageType == grpcMessage.metadata.messageType)
-        assert(cacheParsedMessage.metadata.protocol == grpcMessage.metadata.protocol)
+        assertEquals(cacheParsedMessage.book, messageId.bookName)
+        assertEquals(cacheParsedMessage.group, grpcMessage.sessionGroup)
+        assertEquals(cacheParsedMessage.sessionAlias, grpcMessage.sessionAlias)
+        assertEquals(cacheParsedMessage.direction, grpcMessage.direction.toString())
+        assertEquals(cacheParsedMessage.sequence, grpcMessage.sequence)
+        assertEquals(cacheParsedMessage.subsequence, grpcMessage.subsequence)
+        assertEquals(cacheParsedMessage.timestamp, toArangoTimestamp(grpcMessage.timestamp.toInstant()))
+        assertEquals(cacheParsedMessage.body, grpcMessage.getBody())
+        assertEquals(cacheParsedMessage.metadata.messageType, grpcMessage.metadata.messageType)
+        assertEquals(cacheParsedMessage.metadata.protocol, grpcMessage.metadata.protocol)
+        assertEquals(cacheParsedMessage.metadata.properties, grpcMessage.metadata.propertiesMap)
     }
 
     private fun compare(cacheRawMessage: com.exactpro.th2.cache.common.message.RawMessage) {
-        assert(cacheRawMessage.book == messageId.bookName)
-        assert(cacheRawMessage.group == grpcMessage.sessionGroup)
-        assert(cacheRawMessage.sessionAlias == grpcMessage.sessionAlias)
-        assert(cacheRawMessage.direction == grpcMessage.direction.toString())
-        assert(cacheRawMessage.sequence == grpcMessage.sequence)
-        assert(cacheRawMessage.metadata.protocol == grpcMessage.metadata.protocol)
+        assertEquals(cacheRawMessage.book, messageId.bookName)
+        assertEquals(cacheRawMessage.group, grpcRawMessage.sessionGroup)
+        assertEquals(cacheRawMessage.sessionAlias, grpcRawMessage.sessionAlias)
+        assertEquals(cacheRawMessage.direction, grpcRawMessage.direction.toString())
+        assertEquals(cacheRawMessage.sequence, grpcRawMessage.sequence)
+        assertEquals(cacheRawMessage.timestamp, toArangoTimestamp(grpcRawMessage.timestamp.toInstant()))
+        assertEquals(cacheRawMessage.body, grpcRawMessage.body.toByteArray())
+        assertEquals(cacheRawMessage.metadata.protocol, grpcRawMessage.metadata.protocol)
+        assertEquals(cacheRawMessage.metadata.properties, grpcRawMessage.metadata.propertiesMap)
     }
 
     @Test
     fun `formats parsed message id correctly`() {
-        assertTrue(messageId.format() == "book:session-alias:1:100:1:1.2")
+        assertEquals(messageId.format(), "book:session-alias:1:100:1:1.2")
     }
 
     @Test
     fun `formats raw message id correctly`() {
-        assertTrue(rawMessageId.format() == "book:session-alias:1:100:1")
+        assertEquals(rawMessageId.format(), "book:session-alias:1:100:1")
     }
 
     @Test
@@ -121,6 +136,6 @@ class TestCacheMessage {
     @Test
     fun `generates json correctly`() {
         val json = CustomProtoJsonFormatter().print(grpcMessage)
-        assert(json == """{"a":"1","b":"2"}""")
+        assertEquals(json, """{"a":"1","b":"2"}""")
     }
 }
