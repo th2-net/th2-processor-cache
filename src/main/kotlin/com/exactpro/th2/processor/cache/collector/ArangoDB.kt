@@ -64,11 +64,11 @@ class ArangoDB {
     }
 
     private fun initCollections() {
-        eventCollection = prepareCollection(Arango.EVENT_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
-        rawMessageCollection = prepareCollection(Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
-        parsedMessageCollection = prepareCollection(Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
-        eventRelationshipCollection = prepareCollection(Arango.EVENT_EDGES, CollectionType.EDGES, recreateCollections)
-        parsedMessageRelationshipCollection = prepareCollection(Arango.MESSAGE_EDGES, CollectionType.EDGES, recreateCollections)
+        eventCollection = prepareCollection(Arango.EVENT_COLLECTION, CollectionType.DOCUMENT)
+        rawMessageCollection = prepareCollection(Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
+        parsedMessageCollection = prepareCollection(Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT)
+        eventRelationshipCollection = prepareCollection(Arango.EVENT_EDGES, CollectionType.EDGES)
+        parsedMessageRelationshipCollection = prepareCollection(Arango.MESSAGE_EDGES, CollectionType.EDGES)
     }
 
     private fun initGraphs() {
@@ -106,7 +106,7 @@ class ArangoDB {
         }
     }
 
-    internal fun prepareCollection(name: String, type: CollectionType, recreateCollections: Boolean):ArangoCollection {
+    internal fun prepareCollection(name: String, type: CollectionType):ArangoCollection {
         val collection = database.collection(name)
         var exists = collection.exists()
         if (exists && recreateCollections) {

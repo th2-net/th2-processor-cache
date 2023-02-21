@@ -43,9 +43,9 @@ internal class ArangoDBTest {
     fun prepareExistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(existingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoDb = ArangoDB(arangoMock, false)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT, false)
+        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, never()).drop()
         verify(arangoDatabaseMock, never()).createCollection(eq(name), any())
     }
@@ -56,7 +56,7 @@ internal class ArangoDBTest {
 
         val arangoDb = ArangoDB(arangoMock, true)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT, true)
+        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, times(1)).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
@@ -68,7 +68,7 @@ internal class ArangoDBTest {
 
         val arangoDb = ArangoDB(arangoMock, true)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT, true)
+        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
@@ -77,9 +77,9 @@ internal class ArangoDBTest {
     fun recreateNonexistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(nonexistingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoDb = ArangoDB(arangoMock, false)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT, false)
+        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
