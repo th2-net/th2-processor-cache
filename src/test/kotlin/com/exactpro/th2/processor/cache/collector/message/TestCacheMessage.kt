@@ -23,10 +23,7 @@ import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.sequence
 import com.exactpro.th2.common.message.subsequence
 import com.exactpro.th2.common.util.toInstant
-import com.exactpro.th2.common.utils.message.direction
-import com.exactpro.th2.common.utils.message.sessionAlias
-import com.exactpro.th2.common.utils.message.sessionGroup
-import com.exactpro.th2.common.utils.message.timestamp
+import com.exactpro.th2.common.utils.message.*
 import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
@@ -36,57 +33,14 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class TestCacheMessage {
-    private val book = "book"
-    private val connectionId = ConnectionID.newBuilder()
-        .setSessionAlias("session-alias")
-        .setSessionGroup("session-group")
-        .build()
-    private val timestamp = Timestamp.newBuilder()
-        .setSeconds(100)
-        .setNanos(50)
-        .build()
-    private val direction = Direction.FIRST
-    private val messageId = MessageID.newBuilder()
-        .setBookName(book)
-        .setTimestamp(timestamp)
-        .setConnectionId(connectionId)
-        .setDirection(direction)
-        .setSequence(1)
-        .addAllSubsequence(listOf(1, 2))
-        .build()
-    private val type = "type"
-    private val metadata = MessageMetadata.newBuilder()
-        .setId(messageId)
-        .setMessageType(type)
-        .build()
-    private val parentEventId = EventID.newBuilder()
-    private val grpcMessage = GrpcParsedMessage.newBuilder()
-        .setParentEventId(parentEventId)
-        .setMetadata(metadata)
-        .addField("a", "1")
-        .addField("b", "2")
-        .build()
-    private val rawMessageId = MessageID.newBuilder()
-        .setBookName(book)
-        .setTimestamp(timestamp)
-        .setConnectionId(connectionId)
-        .setDirection(direction)
-        .setSequence(1)
-        .build()
-    private val rawMessageMetadata = RawMessageMetadata.newBuilder()
-        .setId(rawMessageId)
-        .build()
-    private val grpcRawMessage = GrpcRawMessage.newBuilder()
-        .setMetadata(rawMessageMetadata)
-        .build()
 
     private fun GrpcParsedMessage.getBody(): Map<String, Any> {
         val jsonString = CustomProtoJsonFormatter().print(this)
         return ObjectMapper().readValue(jsonString, Map::class.java) as Map<String, Any>
     }
 
-    private fun compare(cacheParsedMessage: ParsedMessage) {
-        assertEquals(cacheParsedMessage.book, messageId.bookName)
+    private fun compare(cacheParsedMessage: ParsedMessage, grpcMessage: Message) {
+        assertEquals(cacheParsedMessage.book, grpcMessage.id.bookName)
         assertEquals(cacheParsedMessage.group, grpcMessage.sessionGroup)
         assertEquals(cacheParsedMessage.sessionAlias, grpcMessage.sessionAlias)
         assertEquals(cacheParsedMessage.direction, grpcMessage.direction.toString())
@@ -99,8 +53,8 @@ class TestCacheMessage {
         assertEquals(cacheParsedMessage.metadata.properties, grpcMessage.metadata.propertiesMap)
     }
 
-    private fun compare(cacheRawMessage: com.exactpro.th2.cache.common.message.RawMessage) {
-        assertEquals(cacheRawMessage.book, messageId.bookName)
+    private fun compare(cacheRawMessage: com.exactpro.th2.cache.common.message.RawMessage, grpcRawMessage: RawMessage) {
+        assertEquals(cacheRawMessage.book, grpcRawMessage.id.bookName)
         assertEquals(cacheRawMessage.group, grpcRawMessage.sessionGroup)
         assertEquals(cacheRawMessage.sessionAlias, grpcRawMessage.sessionAlias)
         assertEquals(cacheRawMessage.direction, grpcRawMessage.direction.toString())
@@ -113,28 +67,146 @@ class TestCacheMessage {
 
     @Test
     fun `formats parsed message id correctly`() {
+        val book = "book"
+        val connectionId = ConnectionID.newBuilder()
+            .setSessionAlias("session-alias")
+            .setSessionGroup("session-group")
+            .build()
+        val timestamp = Timestamp.newBuilder()
+            .setSeconds(100)
+            .setNanos(50)
+            .build()
+        val direction = Direction.FIRST
+        val messageId = MessageID.newBuilder()
+            .setBookName(book)
+            .setTimestamp(timestamp)
+            .setConnectionId(connectionId)
+            .setDirection(direction)
+            .setSequence(1)
+            .addAllSubsequence(listOf(1, 2))
+            .build()
         assertEquals(messageId.format(), "book:session-alias:1:100:1:1.2")
     }
 
     @Test
     fun `formats raw message id correctly`() {
+        val book = "book"
+        val connectionId = ConnectionID.newBuilder()
+            .setSessionAlias("session-alias")
+            .setSessionGroup("session-group")
+            .build()
+        val timestamp = Timestamp.newBuilder()
+            .setSeconds(100)
+            .setNanos(50)
+            .build()
+        val direction = Direction.FIRST
+        val rawMessageId = MessageID.newBuilder()
+            .setBookName(book)
+            .setTimestamp(timestamp)
+            .setConnectionId(connectionId)
+            .setDirection(direction)
+            .setSequence(1)
+            .build()
         assertEquals(rawMessageId.format(), "book:session-alias:1:100:1")
     }
 
     @Test
     fun `converts grpc parsed message to cache parsed message`() {
+        val book = "book"
+        val connectionId = ConnectionID.newBuilder()
+            .setSessionAlias("session-alias")
+            .setSessionGroup("session-group")
+            .build()
+        val timestamp = Timestamp.newBuilder()
+            .setSeconds(100)
+            .setNanos(50)
+            .build()
+        val direction = Direction.FIRST
+        val messageId = MessageID.newBuilder()
+            .setBookName(book)
+            .setTimestamp(timestamp)
+            .setConnectionId(connectionId)
+            .setDirection(direction)
+            .setSequence(1)
+            .addAllSubsequence(listOf(1, 2))
+            .build()
+        val type = "type"
+        val metadata = MessageMetadata.newBuilder()
+            .setId(messageId)
+            .setMessageType(type)
+            .build()
+        val parentEventId = EventID.newBuilder()
+        val grpcMessage = GrpcParsedMessage.newBuilder()
+            .setParentEventId(parentEventId)
+            .setMetadata(metadata)
+            .addField("a", "1")
+            .addField("b", "2")
+            .build()
         val cacheParsedMessage = grpcMessage.toCacheMessage()
-        compare(cacheParsedMessage)
+        compare(cacheParsedMessage, grpcMessage)
     }
     
     @Test
     fun `converts grpc raw message to cache raw message`() {
+        val book = "book"
+        val connectionId = ConnectionID.newBuilder()
+            .setSessionAlias("session-alias")
+            .setSessionGroup("session-group")
+            .build()
+        val timestamp = Timestamp.newBuilder()
+            .setSeconds(100)
+            .setNanos(50)
+            .build()
+        val direction = Direction.FIRST
+        val rawMessageId = MessageID.newBuilder()
+            .setBookName(book)
+            .setTimestamp(timestamp)
+            .setConnectionId(connectionId)
+            .setDirection(direction)
+            .setSequence(1)
+            .build()
+        val rawMessageMetadata = RawMessageMetadata.newBuilder()
+            .setId(rawMessageId)
+            .build()
+        val grpcRawMessage = GrpcRawMessage.newBuilder()
+            .setMetadata(rawMessageMetadata)
+            .build()
         val cacheRawMessage = grpcRawMessage.toCacheMessage()
-        compare(cacheRawMessage)
+        compare(cacheRawMessage, grpcRawMessage)
     }
 
     @Test
     fun `generates json correctly`() {
+        val book = "book"
+        val connectionId = ConnectionID.newBuilder()
+            .setSessionAlias("session-alias")
+            .setSessionGroup("session-group")
+            .build()
+        val timestamp = Timestamp.newBuilder()
+            .setSeconds(100)
+            .setNanos(50)
+            .build()
+        val direction = Direction.FIRST
+        val messageId = MessageID.newBuilder()
+            .setBookName(book)
+            .setTimestamp(timestamp)
+            .setConnectionId(connectionId)
+            .setDirection(direction)
+            .setSequence(1)
+            .addAllSubsequence(listOf(1, 2))
+            .build()
+        val type = "type"
+        val metadata = MessageMetadata.newBuilder()
+            .setId(messageId)
+            .setMessageType(type)
+            .build()
+        val parentEventId = EventID.newBuilder()
+        val grpcMessage = GrpcParsedMessage.newBuilder()
+            .setParentEventId(parentEventId)
+            .setMetadata(metadata)
+            .addField("a", "1")
+            .addField("b", "2")
+            .build()
         val json = CustomProtoJsonFormatter().print(grpcMessage)
         assertEquals(json, """{"a":"1","b":"2"}""")
     }
