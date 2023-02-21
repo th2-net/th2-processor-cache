@@ -65,14 +65,14 @@ class Processor(
             arangoDB.prepareDatabase();
             eventBatcher.onEvent(
                 EventBuilder.start()
-                    .name("Database ${arangoDB.database.dbName()} prepared")
+                    .name("Database prepared")
                     .type(EVENT_TYPE_INIT_DATABASE)
                     .toProto(processorEventId)
                     .log(ArangoDB.LOGGER)
             )
         } catch (e: Exception) {
             EventBuilder.start()
-                .name("Failed to prepare database ${arangoDB.database.dbName()}")
+                .name("Failed to prepare database")
                 .type(EVENT_TYPE_INIT_DATABASE)
                 .status(Event.Status.FAILED)
                 .exception(e, true)

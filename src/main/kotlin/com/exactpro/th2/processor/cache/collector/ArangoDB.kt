@@ -29,13 +29,10 @@ import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import mu.KotlinLogging
 
-class ArangoDB(
-    settings: Settings
-) {
-    private val recreateCollections: Boolean = settings.recreateCollections
-    private val arango: Arango = Arango(settings.arangoCredentials)
-
-    internal val database: ArangoDatabase = arango.getDatabase()
+class ArangoDB {
+    private val recreateCollections: Boolean
+    private var arango: Arango
+    private val database: ArangoDatabase
 
     private lateinit var rawMessageCollection: ArangoCollection
     private lateinit var parsedMessageCollection: ArangoCollection
@@ -43,23 +40,35 @@ class ArangoDB(
     private lateinit var eventRelationshipCollection: ArangoCollection
     private lateinit var parsedMessageRelationshipCollection: ArangoCollection
 
+    constructor(settings: Settings) {
+        this.arango = Arango(settings.arangoCredentials)
+        this.database = arango.getDatabase()
+        this.recreateCollections = settings.recreateCollections
+    }
+
+    constructor(arango: Arango, recreateCollections: Boolean) {
+        this.arango = arango
+        this.database = arango.getDatabase()
+        this.recreateCollections = recreateCollections
+    }
+
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
     private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
 
 
     internal fun prepareDatabase() {
-        createDB();
-        initCollections();
-        initGraphs();
+        createDB()
+        initCollections()
+        initGraphs()
     }
 
     private fun initCollections() {
-        eventCollection = prepareCollection(Arango.EVENT_COLLECTION, CollectionType.DOCUMENT);
-        rawMessageCollection = prepareCollection(Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT);
-        parsedMessageCollection = prepareCollection(Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT);
-        eventRelationshipCollection = prepareCollection(Arango.EVENT_EDGES, CollectionType.EDGES);
-        parsedMessageRelationshipCollection = prepareCollection(Arango.MESSAGE_EDGES, CollectionType.EDGES);
+        eventCollection = prepareCollection(Arango.EVENT_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
+        rawMessageCollection = prepareCollection(Arango.RAW_MESSAGE_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
+        parsedMessageCollection = prepareCollection(Arango.PARSED_MESSAGE_COLLECTION, CollectionType.DOCUMENT, recreateCollections)
+        eventRelationshipCollection = prepareCollection(Arango.EVENT_EDGES, CollectionType.EDGES, recreateCollections)
+        parsedMessageRelationshipCollection = prepareCollection(Arango.MESSAGE_EDGES, CollectionType.EDGES, recreateCollections)
     }
 
     private fun initGraphs() {
@@ -97,7 +106,7 @@ class ArangoDB(
         }
     }
 
-    private fun prepareCollection(name: String, type: CollectionType):ArangoCollection {
+    internal fun prepareCollection(name: String, type: CollectionType, recreateCollections: Boolean):ArangoCollection {
         val collection = database.collection(name)
         var exists = collection.exists()
         if (exists && recreateCollections) {
@@ -109,7 +118,7 @@ class ArangoDB(
             LOGGER.debug { "Creating collection \"${name}\"" }
             database.createCollection(name, CollectionCreateOptions().type(type))
         }
-        return database.collection(name);
+        return database.collection(name)
     }
 
 
