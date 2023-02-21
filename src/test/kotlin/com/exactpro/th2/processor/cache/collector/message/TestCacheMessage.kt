@@ -18,11 +18,13 @@ package com.exactpro.th2.processor.cache.collector.message
 
 import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.common.grpc.*
+import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.sequence
 import com.exactpro.th2.common.message.subsequence
 import com.exactpro.th2.common.utils.message.direction
 import com.exactpro.th2.common.utils.message.sessionAlias
 import com.exactpro.th2.common.utils.message.sessionGroup
+import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
 import com.google.protobuf.Timestamp
@@ -57,6 +59,8 @@ class TestCacheMessage {
     private val grpcMessage = GrpcParsedMessage.newBuilder()
         .setParentEventId(parentEventId)
         .setMetadata(metadata)
+        .addField("a", "1")
+        .addField("b", "2")
         .build()
     private val rawMessageId = MessageID.newBuilder()
         .setBookName(book)
@@ -71,7 +75,6 @@ class TestCacheMessage {
     private val grpcRawMessage = GrpcRawMessage.newBuilder()
         .setMetadata(rawMessageMetadata)
         .build()
-
 
     private fun compare(cacheParsedMessage: ParsedMessage) {
         assert(cacheParsedMessage.book == messageId.bookName)
@@ -113,5 +116,11 @@ class TestCacheMessage {
     fun `converts grpc raw message to cache raw message`() {
         val cacheRawMessage = grpcRawMessage.toCacheMessage()
         compare(cacheRawMessage)
+    }
+
+    @Test
+    fun `generates json correctly`() {
+        val json = CustomProtoJsonFormatter().print(grpcMessage)
+        assert(json == """{"a":"1","b":"2"}""")
     }
 }
