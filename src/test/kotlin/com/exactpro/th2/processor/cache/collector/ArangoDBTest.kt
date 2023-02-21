@@ -18,7 +18,9 @@ package com.exactpro.th2.processor.cache.collector
 
 import com.arangodb.ArangoCollection
 import com.arangodb.ArangoDatabase
+import com.arangodb.ArangoGraph
 import com.arangodb.entity.CollectionType
+import com.arangodb.entity.EdgeDefinition
 import com.exactpro.th2.cache.common.Arango
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -30,12 +32,16 @@ internal class ArangoDBTest {
     private val arangoMock = mock(Arango::class.java)
     private val existingCollection = mock(ArangoCollection::class.java)
     private val nonexistingCollection = mock(ArangoCollection::class.java)
+    private val existingGraph = mock(ArangoGraph::class.java)
+    private val nonexistingGraph = mock(ArangoGraph::class.java)
     private val name = "test-collection"
 
     @BeforeEach
     fun init() {
         `when`(existingCollection.exists()).thenReturn(true)
         `when`(nonexistingCollection.exists()).thenReturn(false)
+        `when`(existingGraph.exists()).thenReturn(true)
+        `when`(nonexistingGraph.exists()).thenReturn(false)
         `when`(arangoMock.getDatabase()).thenReturn(arangoDatabaseMock)
     }
 
@@ -82,5 +88,69 @@ internal class ArangoDBTest {
         arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
+    }
+
+    @Test
+    fun createExistingDatabase() {
+        `when`(arangoDatabaseMock.exists()).thenReturn(true)
+
+        val arangoDb = ArangoDB(arangoMock, false)
+
+        arangoDb.createDB()
+        verify(arangoDatabaseMock, never()).create()
+    }
+
+    @Test
+    fun createNonexistingDatabase() {
+        `when`(arangoDatabaseMock.exists()).thenReturn(false)
+
+        val arangoDb = ArangoDB(arangoMock, false)
+
+        arangoDb.createDB()
+        verify(arangoDatabaseMock, times(1)).create()
+    }
+
+    @Test
+    fun prepareExistingGraph() {
+        `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
+
+        val arangoDb = ArangoDB(arangoMock, false)
+
+        arangoDb.initGraph(name, EdgeDefinition())
+        verify(existingGraph, never()).drop()
+        verify(arangoDatabaseMock, never()).createGraph(name, listOf(), null)
+    }
+
+    @Test
+    fun recreateExistingGraph() {
+        `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
+
+        val arangoDb = ArangoDB(arangoMock, true)
+
+        arangoDb.initGraph(name, EdgeDefinition())
+        verify(existingGraph, times(1)).drop()
+        verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
+    }
+
+    @Test
+    fun prepareNonexistingGraph() {
+        `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
+
+        val arangoDb = ArangoDB(arangoMock, false)
+
+        arangoDb.initGraph(name, EdgeDefinition())
+        verify(existingGraph, never()).drop()
+        verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
+    }
+
+    @Test
+    fun recreateNonexistingGraph() {
+        `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
+
+        val arangoDb = ArangoDB(arangoMock, true)
+
+        arangoDb.initGraph(name, EdgeDefinition())
+        verify(existingGraph, never()).drop()
+        verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
     }
 }
