@@ -121,6 +121,6 @@ class TestCacheMessage {
     @Test
     fun `generates json correctly`() {
         val json = CustomProtoJsonFormatter().print(grpcMessage)
-        assert(json == """{"a":"1","b":"2"}""")
+        assert(json == mapOf("a" to "1", "b" to "2"))
     }
 }

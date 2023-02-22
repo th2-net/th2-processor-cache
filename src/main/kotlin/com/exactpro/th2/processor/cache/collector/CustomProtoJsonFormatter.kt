@@ -20,24 +20,12 @@ import com.exactpro.th2.common.grpc.Value
 
 class CustomProtoJsonFormatter : AbstractJsonFormatter() {
 
-    companion object {
-        internal const val QUOTE_CHAR = '"'.code
-        internal const val BACK_SLASH = '\\'.code
-    }
-
-    override fun printV(value: Value, sb: StringBuilder) {
-        when (value.kindCase) {
-            Value.KindCase.NULL_VALUE -> sb.append("null")
-            Value.KindCase.SIMPLE_VALUE -> convertStringToJson(value.simpleValue, sb)
-            Value.KindCase.MESSAGE_VALUE -> printM(value.messageValue, sb)
-            Value.KindCase.LIST_VALUE -> {
-                sb.append("[")
-                for ((count, element) in value.listValue.valuesList.withIndex()) {
-                    if (count > 0) sb.append(',')
-                    printV(element, sb)
-                }
-                sb.append(']')
-            }
+    override fun printV(value: Value): Any {
+        return when (value.kindCase) {
+            Value.KindCase.NULL_VALUE -> "null"
+            Value.KindCase.SIMPLE_VALUE -> value.simpleValue
+            Value.KindCase.MESSAGE_VALUE -> printM(value.messageValue, map)
+            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.forEach { printV(it) }
             Value.KindCase.KIND_NOT_SET, null -> error("unexpected kind ${value.kindCase}")
         }
     }
