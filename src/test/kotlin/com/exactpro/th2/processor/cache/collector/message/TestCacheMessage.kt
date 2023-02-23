@@ -27,6 +27,7 @@ import com.exactpro.th2.common.utils.message.*
 import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
+import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -41,8 +42,8 @@ class TestCacheMessage {
 
     private fun compare(cacheParsedMessage: ParsedMessage, grpcMessage: Message) {
         assertEquals(cacheParsedMessage.book, grpcMessage.id.bookName)
-        assertEquals(cacheParsedMessage.group, grpcMessage.sessionGroup)
-        assertEquals(cacheParsedMessage.sessionAlias, grpcMessage.sessionAlias)
+        assertEquals(cacheParsedMessage.group, grpcMessage.id.connectionId.sessionGroup)
+        assertEquals(cacheParsedMessage.sessionAlias, grpcMessage.id.connectionId.sessionAlias)
         assertEquals(cacheParsedMessage.direction, grpcMessage.direction.toString())
         assertEquals(cacheParsedMessage.sequence, grpcMessage.sequence)
         assertEquals(cacheParsedMessage.subsequence, grpcMessage.subsequence)
@@ -55,8 +56,8 @@ class TestCacheMessage {
 
     private fun compare(cacheRawMessage: com.exactpro.th2.cache.common.message.RawMessage, grpcRawMessage: RawMessage) {
         assertEquals(cacheRawMessage.book, grpcRawMessage.id.bookName)
-        assertEquals(cacheRawMessage.group, grpcRawMessage.sessionGroup)
-        assertEquals(cacheRawMessage.sessionAlias, grpcRawMessage.sessionAlias)
+        assertEquals(cacheRawMessage.group, grpcRawMessage.id.connectionId.sessionGroup)
+        assertEquals(cacheRawMessage.sessionAlias, grpcRawMessage.id.connectionId.sessionAlias)
         assertEquals(cacheRawMessage.direction, grpcRawMessage.direction.toString())
         assertEquals(cacheRawMessage.sequence, grpcRawMessage.sequence)
         assertEquals(cacheRawMessage.timestamp, toArangoTimestamp(grpcRawMessage.timestamp.toInstant()))
@@ -209,5 +210,19 @@ class TestCacheMessage {
             .build()
         val json = CustomProtoJsonFormatter().print(grpcMessage)
         assertEquals(json, """{"a":"1","b":"2"}""")
+    }
+
+    @Test
+    fun `converts empty grpc parsed message to cache parsed message`() {
+        val grpcMessage = Message.newBuilder().build()
+        val cacheParsedMessage = grpcMessage.toCacheMessage()
+        compare(cacheParsedMessage, grpcMessage)
+    }
+
+    @Test
+    fun `converts empty grpc raw message to cache raw message`() {
+        val rawMessage = GrpcRawMessage.newBuilder().build()
+        val cacheRawMessage = rawMessage.toCacheMessage()
+        compare(cacheRawMessage, rawMessage)
     }
 }

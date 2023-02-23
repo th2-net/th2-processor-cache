@@ -108,4 +108,11 @@ class TestCacheEvent {
         val cacheEvent = grpcEvent.toCacheEvent()
         compare(cacheEvent, grpcEvent)
     }
+
+    @Test
+    fun `converts empty grpc event to cache event`() {
+        val grpcEvent = GrpcEvent.newBuilder().build()
+        val cacheEvent = grpcEvent.toCacheEvent()
+        compare(cacheEvent, grpcEvent)
+    }
 }
