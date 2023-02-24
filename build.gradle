@@ -30,7 +30,7 @@ dependencies {
     kapt 'com.google.auto.service:auto-service:1.0.1'
 
     api platform('com.exactpro.th2:bom:4.0.2')
-    implementation 'com.exactpro.th2:cache-common:0.0.1-dev-version-1-4230346685-cb0e98c-SNAPSHOT'
+    implementation 'com.exactpro.th2:cache-common:0.0.1-dev-version-1-4252277065-cbd09b1-SNAPSHOT'
 
     implementation("com.exactpro.th2:grpc-common:4.0.0-TH2-4262-reduce-load-book-and-page-3574839736-SNAPSHOT")
     implementation("com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT")
@@ -42,20 +42,12 @@ dependencies {
 
     implementation 'io.prometheus:simpleclient'
 
-    implementation 'com.fasterxml.jackson.core:jackson-core'
-    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310'
-
     implementation 'io.ktor:ktor-server-netty:2.0.2'
 
     implementation 'com.rabbitmq:amqp-client'
 
     implementation "io.grpc:grpc-protobuf"
     implementation "com.google.protobuf:protobuf-java-util"
-
-    implementation group: 'com.arangodb', name: 'arangodb-java-driver', version: '6.17.0'
-    implementation("com.arangodb:velocypack:2.0.0")
-    implementation("com.arangodb:jackson-dataformat-velocypack:3.0.0")
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'
     testImplementation "org.mockito:mockito-core:5.1.1"
