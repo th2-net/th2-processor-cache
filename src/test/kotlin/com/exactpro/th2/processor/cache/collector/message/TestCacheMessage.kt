@@ -24,9 +24,9 @@ import com.exactpro.th2.common.message.subsequence
 import com.exactpro.th2.common.utils.message.direction
 import com.exactpro.th2.common.utils.message.sessionAlias
 import com.exactpro.th2.common.utils.message.sessionGroup
-import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
+import com.exactpro.th2.processor.cache.collector.JsonFormatter
 import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -120,7 +120,7 @@ class TestCacheMessage {
 
     @Test
     fun `generates json correctly`() {
-        val json = CustomProtoJsonFormatter().print(grpcMessage)
+        val json = JsonFormatter().print(grpcMessage)
         assert(json == mapOf("a" to "1", "b" to "2"))
     }
 }
