@@ -33,7 +33,7 @@ dependencies {
     implementation 'com.exactpro.th2:cache-common:0.0.1-dev-version-1-4252277065-cbd09b1-SNAPSHOT'
 
     implementation("com.exactpro.th2:grpc-common:4.0.0-TH2-4262-reduce-load-book-and-page-3574839736-SNAPSHOT")
-    implementation("com.exactpro.th2:common:5.0.0-TH2-4262-reduce-load-book-and-page-3607143172-SNAPSHOT")
+    implementation("com.exactpro.th2:common:5.1.1-dev")
     implementation("com.exactpro.th2:common-utils:0.0.1-book-and-page-3607472196-SNAPSHOT")
     implementation 'com.exactpro.th2:processor-core:0.1.0-TH2-4262-reduce-load-book-and-page-3899849388-e04ffb1-SNAPSHOT'
 
