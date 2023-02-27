@@ -25,9 +25,9 @@ import com.exactpro.th2.common.grpc.MessageID
 import com.exactpro.th2.common.message.*
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.common.utils.message.id
-import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
+import com.exactpro.th2.processor.cache.collector.JsonFormatter
 
 
 //FIXME: Vertex id should be generated base on the message id
@@ -42,7 +42,7 @@ internal fun GrpcParsedMessage.toCacheMessage(): ParsedMessage {
         subsequence = id.subsequenceList,
         timestamp = toArangoTimestamp(id.timestamp.toInstant()),
         attachedEventIds = emptySet(),
-        body = CustomProtoJsonFormatter().print(this),
+        body = JsonFormatter().print(this),
         metadata = metadata.toParsedMessageMetadata()
     )
 }

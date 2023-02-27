@@ -19,26 +19,30 @@ package com.exactpro.th2.processor.cache.collector
 import com.exactpro.th2.common.grpc.Message
 import com.exactpro.th2.common.grpc.Value
 
-interface JsonFormatter {
-    fun print(message: Message): Map<String, Any>
-}
-
-abstract class AbstractJsonFormatter : JsonFormatter {
+class JsonFormatter {
     val map = mutableMapOf<String, Any>()
 
-    override fun print(message: Message): MutableMap<String, Any> {
-        printM(message, map)
+    internal fun print(message: Message): MutableMap<String, Any> {
+        printM(message)
         return map
     }
 
-    protected abstract fun printV(value: Value): Any
-
-    protected fun printM (msg: Message, map: MutableMap<String, Any>) {
+    private  fun printM (msg: Message) {
         val fieldsMap = msg.fieldsMap
         if (fieldsMap.isNotEmpty()) {
             for (entry in fieldsMap.entries) {
                 map[entry.key] = printV(entry.value)
             }
+        }
+    }
+
+    private fun printV(value: Value): Any {
+        return when (value.kindCase) {
+            Value.KindCase.NULL_VALUE -> "null"
+            Value.KindCase.SIMPLE_VALUE -> value.simpleValue
+            Value.KindCase.MESSAGE_VALUE -> printM(value.messageValue)
+            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.forEach { printV(it) }
+            Value.KindCase.KIND_NOT_SET, null -> error("unexpected kind ${value.kindCase}")
         }
     }
 }
