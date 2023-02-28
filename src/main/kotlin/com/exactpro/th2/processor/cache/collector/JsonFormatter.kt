@@ -27,7 +27,7 @@ class JsonFormatter {
         return map
     }
 
-    private  fun printM (msg: Message) {
+    private fun printM(msg: Message) {
         val fieldsMap = msg.fieldsMap
         if (fieldsMap.isNotEmpty()) {
             for (entry in fieldsMap.entries) {
@@ -40,9 +40,17 @@ class JsonFormatter {
         return when (value.kindCase) {
             Value.KindCase.NULL_VALUE -> "null"
             Value.KindCase.SIMPLE_VALUE -> value.simpleValue
-            Value.KindCase.MESSAGE_VALUE -> printM(value.messageValue)
-            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.forEach { printV(it) }
+            Value.KindCase.MESSAGE_VALUE -> f(value.messageValue)
+            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.map { printV(it) }
             Value.KindCase.KIND_NOT_SET, null -> error("unexpected kind ${value.kindCase}")
         }
+    }
+
+    private fun f(msg: Message): Any {
+        val fieldsMap = msg.fieldsMap
+        if (fieldsMap.isNotEmpty()) {
+            return fieldsMap.entries.associate { it.key to printV(it.value) }
+        }
+        return ""
     }
 }

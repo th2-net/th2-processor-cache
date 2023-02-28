@@ -59,8 +59,11 @@ class TestCacheMessage {
     private val grpcMessage = GrpcParsedMessage.newBuilder()
         .setParentEventId(parentEventId)
         .setMetadata(metadata)
-        .addField("a", "1")
-        .addField("b", "2")
+        .addField("s_val", "1")
+        .addField("mes_val", GrpcParsedMessage.newBuilder().addField("s_value", "1")
+            .addField("message_val", GrpcParsedMessage.newBuilder().addField("s_value2", "2").build())
+            .build())
+        .addField("lst_val", listOf(listOf(1, 2), 2, 3))
         .build()
     private val rawMessageId = MessageID.newBuilder()
         .setBookName(book)
@@ -120,7 +123,11 @@ class TestCacheMessage {
 
     @Test
     fun `generates json correctly`() {
-        val json = JsonFormatter().print(grpcMessage)
-        assert(json == mapOf("a" to "1", "b" to "2"))
+        val actual = JsonFormatter().print(grpcMessage)
+        val expected = mapOf("s_val" to "1",
+            "mes_val" to mapOf("s_value" to "1", "message_val" to mapOf("s_value2" to "2")),
+            "lst_val" to listOf(listOf("1", "2"), "2", "3")
+            )
+        assert(actual == expected)
     }
 }
