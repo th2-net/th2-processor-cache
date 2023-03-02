@@ -26,6 +26,8 @@ import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
+import org.mockito.Mockito.after
+import org.mockito.Mockito.times
 import java.time.Instant
 
 class TestProcessor {
@@ -41,10 +43,9 @@ class TestProcessor {
         processor = Processor(eventBatcherMock, processorEventIdMock, settings, arangoDb)
     }
 
-    @Test
-    fun callsInsertEvents() {
+    private fun generateEvents(size: Int): MutableList<GrpcEvent> {
         val list = mutableListOf<GrpcEvent>()
-        for (i in 1..100) {
+        for (i in 1..size) {
             val grpcEvent = GrpcEvent.newBuilder()
                 .setId(EVENT_ID)
                 .setEndTimestamp(Timestamp.newBuilder().build())
@@ -55,35 +56,75 @@ class TestProcessor {
                 .build()
             list.add(grpcEvent)
         }
-
-        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoDb, Mockito.times(1)).insertEvents(list.map { it.toCacheEvent() })
+        return list
     }
 
-    @Test
-    fun callsInsertRawMessages() {
+    private fun generateRawMessages(size: Int): MutableList<GrpcRawMessage> {
         val list = mutableListOf<GrpcRawMessage>()
-        for (i in 1..100) {
+        for (i in 1..size) {
             val grpcRawMessage = GrpcRawMessage.newBuilder()
                 .build()
             list.add(grpcRawMessage)
         }
-
-        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoDb, Mockito.times(1)).insertRawMessages(MockitoHelper.anyObject())
+        return list
     }
 
-    @Test
-    fun callsInsertParsedMessages() {
+    private fun generateParsedMessages(size: Int): MutableList<GrpcParsedMessage> {
         val list = mutableListOf<GrpcParsedMessage>()
-        for (i in 1..100) {
+        for (i in 1..size) {
             val grpcParsedMessage = GrpcParsedMessage.newBuilder()
                 .build()
             list.add(grpcParsedMessage)
         }
+        return list
+    }
+
+    @Test
+    fun callsInsertEvents() {
+        val list = generateEvents(100)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoDb, Mockito.times(1)).insertParsedMessages(MockitoHelper.anyObject())
+        Mockito.verify(arangoDb, times(1)).insertEvents(list.map { it.toCacheEvent() })
+    }
+
+    @Test
+    fun callsInsertEventsMultipleTimes() {
+        val list = generateEvents(130)
+
+        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
+        Mockito.verify(arangoDb, after(1100).times(2)).insertEvents(MockitoHelper.anyObject())
+    }
+
+    @Test
+    fun callsInsertRawMessages() {
+        val list = generateRawMessages(100)
+
+        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
+        Mockito.verify(arangoDb, times(1)).insertRawMessages(MockitoHelper.anyObject())
+    }
+
+    @Test
+    fun callsInsertRawMessagesMultipleTimes() {
+        val list = generateRawMessages(130)
+
+        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
+        Mockito.verify(arangoDb, after(1100).times(2)).insertRawMessages(MockitoHelper.anyObject())
+    }
+
+    @Test
+    fun callsInsertParsedMessages() {
+        val list = generateParsedMessages(100)
+
+        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
+        Mockito.verify(arangoDb, times(1)).insertParsedMessages(MockitoHelper.anyObject())
+    }
+
+    @Test
+    fun callsInsertParsedMessagesMultipleTimes() {
+        val list = generateParsedMessages(130)
+
+        list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
+        Mockito.verify(arangoDb, after(1100).times(2)).insertParsedMessages(MockitoHelper.anyObject())
     }
 
     object MockitoHelper {
