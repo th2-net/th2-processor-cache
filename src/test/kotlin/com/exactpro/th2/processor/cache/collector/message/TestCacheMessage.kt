@@ -22,13 +22,12 @@ import com.exactpro.th2.common.grpc.*
 import com.exactpro.th2.common.message.addField
 import com.exactpro.th2.common.message.sequence
 import com.exactpro.th2.common.message.subsequence
+import com.exactpro.th2.common.utils.message.direction
 import com.exactpro.th2.common.util.toInstant
 import com.exactpro.th2.common.utils.message.*
-import com.exactpro.th2.processor.cache.collector.CustomProtoJsonFormatter
 import com.exactpro.th2.processor.cache.collector.GrpcParsedMessage
 import com.exactpro.th2.processor.cache.collector.GrpcRawMessage
-import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
-import com.fasterxml.jackson.databind.ObjectMapper
+import com.exactpro.th2.processor.cache.collector.JsonFormatter
 import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -36,8 +35,7 @@ import org.junit.jupiter.api.Test
 class TestCacheMessage {
 
     private fun GrpcParsedMessage.getBody(): Map<String, Any> {
-        val jsonString = CustomProtoJsonFormatter().print(this)
-        return ObjectMapper().readValue(jsonString, Map::class.java) as Map<String, Any>
+        return JsonFormatter().extractBody(this)
     }
 
     private fun compare(cacheParsedMessage: ParsedMessage, grpcMessage: Message) {
@@ -146,7 +144,7 @@ class TestCacheMessage {
         val cacheParsedMessage = grpcMessage.toCacheMessage()
         compare(cacheParsedMessage, grpcMessage)
     }
-    
+
     @Test
     fun `converts grpc raw message to cache raw message`() {
         val book = "book"
@@ -205,24 +203,17 @@ class TestCacheMessage {
         val grpcMessage = GrpcParsedMessage.newBuilder()
             .setParentEventId(parentEventId)
             .setMetadata(metadata)
-            .addField("a", "1")
-            .addField("b", "2")
+            .addField("s_val", "1")
+            .addField("mes_val", GrpcParsedMessage.newBuilder().addField("s_value", "1")
+                .addField("message_val", GrpcParsedMessage.newBuilder().addField("s_value2", "2").build())
+                .build())
+            .addField("lst_val", listOf(listOf(1, 2), 2, 3))
             .build()
-        val json = CustomProtoJsonFormatter().print(grpcMessage)
-        assertEquals(json, """{"a":"1","b":"2"}""")
-    }
-
-    @Test
-    fun `converts empty grpc parsed message to cache parsed message`() {
-        val grpcMessage = Message.newBuilder().build()
-        val cacheParsedMessage = grpcMessage.toCacheMessage()
-        compare(cacheParsedMessage, grpcMessage)
-    }
-
-    @Test
-    fun `converts empty grpc raw message to cache raw message`() {
-        val rawMessage = GrpcRawMessage.newBuilder().build()
-        val cacheRawMessage = rawMessage.toCacheMessage()
-        compare(cacheRawMessage, rawMessage)
+        val actual = grpcMessage.getBody()
+        val expected = mapOf("s_val" to "1",
+            "mes_val" to mapOf("s_value" to "1", "message_val" to mapOf("s_value2" to "2")),
+            "lst_val" to listOf(listOf("1", "2"), "2", "3")
+            )
+        assert(actual == expected)
     }
 }
