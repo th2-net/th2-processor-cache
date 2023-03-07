@@ -86,13 +86,13 @@ class ArangoDB {
         initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
     }
 
-    private fun createDB() {
+    internal fun createDB() {
         if (!database.exists()) {
             database.create()
         }
     }
 
-    private fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
+    internal fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
         val graph = database.graph(name)
         var exists = graph.exists()
         if (exists && recreateCollections) {
