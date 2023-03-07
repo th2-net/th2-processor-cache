@@ -42,7 +42,7 @@ internal fun GrpcParsedMessage.toCacheMessage(): ParsedMessage {
         subsequence = id.subsequenceList,
         timestamp = toArangoTimestamp(id.timestamp.toInstant()),
         attachedEventIds = emptySet(),
-        body = JsonFormatter().print(this),
+        body = JsonFormatter().extractBody(this),
         metadata = metadata.toParsedMessageMetadata()
     )
 }

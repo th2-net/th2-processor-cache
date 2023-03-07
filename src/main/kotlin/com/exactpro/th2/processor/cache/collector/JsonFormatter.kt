@@ -22,34 +22,34 @@ import com.exactpro.th2.common.grpc.Value
 class JsonFormatter {
     val map = mutableMapOf<String, Any>()
 
-    internal fun print(message: Message): MutableMap<String, Any> {
-        printM(message)
+    internal fun extractBody(message: Message): MutableMap<String, Any> {
+        getMessage(message)
         return map
     }
 
-    private fun printM(msg: Message) {
+    private fun getMessage(msg: Message) {
         val fieldsMap = msg.fieldsMap
         if (fieldsMap.isNotEmpty()) {
             for (entry in fieldsMap.entries) {
-                map[entry.key] = printV(entry.value)
+                map[entry.key] = getValue(entry.value)
             }
         }
     }
 
-    private fun printV(value: Value): Any {
+    private fun getValue(value: Value): Any {
         return when (value.kindCase) {
             Value.KindCase.NULL_VALUE -> "null"
             Value.KindCase.SIMPLE_VALUE -> value.simpleValue
-            Value.KindCase.MESSAGE_VALUE -> f(value.messageValue)
-            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.map { printV(it) }
+            Value.KindCase.MESSAGE_VALUE -> getMessageMap(value.messageValue)
+            Value.KindCase.LIST_VALUE -> value.listValue.valuesList.map { getValue(it) }
             Value.KindCase.KIND_NOT_SET, null -> error("unexpected kind ${value.kindCase}")
         }
     }
 
-    private fun f(msg: Message): Any {
+    private fun getMessageMap(msg: Message): Any {
         val fieldsMap = msg.fieldsMap
         if (fieldsMap.isNotEmpty()) {
-            return fieldsMap.entries.associate { it.key to printV(it.value) }
+            return fieldsMap.entries.associate { it.key to getValue(it.value) }
         }
         return ""
     }

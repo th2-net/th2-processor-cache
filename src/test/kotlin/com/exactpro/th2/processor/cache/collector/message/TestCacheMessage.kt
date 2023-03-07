@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test
 class TestCacheMessage {
 
     private fun GrpcParsedMessage.getBody(): Map<String, Any> {
-        return JsonFormatter().print(this)
+        return JsonFormatter().extractBody(this)
     }
 
     private fun compare(cacheParsedMessage: ParsedMessage, grpcMessage: Message) {
@@ -209,7 +209,7 @@ class TestCacheMessage {
                 .build())
             .addField("lst_val", listOf(listOf(1, 2), 2, 3))
             .build()
-        val actual = JsonFormatter().print(grpcMessage)
+        val actual = grpcMessage.getBody()
         val expected = mapOf("s_val" to "1",
             "mes_val" to mapOf("s_value" to "1", "message_val" to mapOf("s_value2" to "2")),
             "lst_val" to listOf(listOf("1", "2"), "2", "3")
