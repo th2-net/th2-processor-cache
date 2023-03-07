@@ -16,6 +16,7 @@
 
 package com.exactpro.th2.processor.cache.collector
 
+import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.*
@@ -24,6 +25,7 @@ import com.exactpro.th2.processor.cache.collector.event.format
 import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collector.message.format
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
+import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import mu.KotlinLogging
 import java.util.concurrent.Executors
@@ -63,6 +65,15 @@ class Processor(
         try {
              eventBatch.onEvent(grpcEvent)
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle event")
+                    .type(EVENT_TYPE_HANDLE_EVENT)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcEvent.id.format()}, current number of errors = $errors", e )
         }
@@ -72,6 +83,15 @@ class Processor(
         try {
             parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle parsed message")
+                    .type(EVENT_TYPE_HANDLE_PARSED_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling parsed message ${grpcMessage.id.format()}, current number of errors = $errors", e )
         }
@@ -81,6 +101,15 @@ class Processor(
         try {
             rawMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle raw message")
+                    .type(EVENT_TYPE_HANDLE_RAW_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling raw message ${grpcMessage.id.format()}, current number of errors = $errors", e )
         }
@@ -89,5 +118,8 @@ class Processor(
     companion object {
         private val K_LOGGER = KotlinLogging.logger {}
         const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
+        const val EVENT_TYPE_HANDLE_EVENT: String = "Handle event"
+        const val EVENT_TYPE_HANDLE_PARSED_MESSAGE: String = "Handle parsed message"
+        const val EVENT_TYPE_HANDLE_RAW_MESSAGE: String = "Handle raw message"
     }
 }
