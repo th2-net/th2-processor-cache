@@ -162,6 +162,6 @@ class ArangoPersistor: Persistor {
     }
 
     companion object {
-        val LOGGER = KotlinLogging.logger {}
+        private val LOGGER = KotlinLogging.logger {}
     }
 }

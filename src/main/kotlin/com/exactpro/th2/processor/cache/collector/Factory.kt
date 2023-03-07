@@ -24,6 +24,7 @@ import com.exactpro.th2.processor.utility.log
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.auto.service.AutoService
+import mu.KotlinLogging
 import java.time.Instant
 
 @Suppress("unused")
@@ -57,7 +58,7 @@ class Factory : IProcessorFactory {
                             .name("Database prepared")
                             .type(Processor.EVENT_TYPE_INIT_DATABASE)
                             .toProto(processorEventId)
-                            .log(ArangoPersistor.LOGGER)
+                            .log(LOGGER)
                     )
                 } catch (e: Exception) {
                     EventBuilder.start()
@@ -66,7 +67,7 @@ class Factory : IProcessorFactory {
                         .status(Event.Status.FAILED)
                         .exception(e, true)
                         .toProto(processorEventId)
-                        .log(ArangoPersistor.LOGGER);
+                        .log(LOGGER);
                     throw e;
                 }
                 return processor
@@ -78,4 +79,8 @@ class Factory : IProcessorFactory {
         .name("Healer event data processor ${Instant.now()}")
         .description("Will contain all events with errors and information about processed events")
         .type("Microservice")
+
+    companion object {
+        private val LOGGER = KotlinLogging.logger {}
+    }
 }

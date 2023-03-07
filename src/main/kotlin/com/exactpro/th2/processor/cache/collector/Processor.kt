@@ -93,7 +93,7 @@ class Processor(
     }
 
     companion object {
-        val K_LOGGER = KotlinLogging.logger {}
+        private val K_LOGGER = KotlinLogging.logger {}
         const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
     }
 }
