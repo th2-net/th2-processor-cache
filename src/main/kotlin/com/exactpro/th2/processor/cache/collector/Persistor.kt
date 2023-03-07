@@ -21,7 +21,6 @@ import com.exactpro.th2.cache.common.message.ParsedMessage
 import com.exactpro.th2.cache.common.message.RawMessage
 
 interface Persistor {
-    fun prepareDatabase()
     fun insertEvents(events: List<Event>)
     fun insertParsedMessages(messages: List<ParsedMessage>)
     fun insertRawMessages(messages: List<RawMessage>)

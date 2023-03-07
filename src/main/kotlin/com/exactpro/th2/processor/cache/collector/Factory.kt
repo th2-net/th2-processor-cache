@@ -20,6 +20,7 @@ import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.api.IProcessorFactory
 import com.exactpro.th2.processor.api.IProcessorSettings
 import com.exactpro.th2.processor.api.ProcessorContext
+import com.exactpro.th2.processor.utility.log
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.auto.service.AutoService
@@ -42,13 +43,32 @@ class Factory : IProcessorFactory {
                 check(settings is Settings) {
                     "Settings type mismatch expected: ${Settings::class}, actual: ${settings::class}"
                 }
+                val arangoPersistor = ArangoPersistor(settings)
                 val processor = Processor(
                     eventBatcher,
                     processorEventId,
                     settings,
-                    ArangoPersistor(settings)
+                    arangoPersistor
                 )
-                processor.init()
+                try {
+                    arangoPersistor.prepareDatabase();
+                    eventBatcher.onEvent(
+                        EventBuilder.start()
+                            .name("Database prepared")
+                            .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                            .toProto(processorEventId)
+                            .log(ArangoPersistor.LOGGER)
+                    )
+                } catch (e: Exception) {
+                    EventBuilder.start()
+                        .name("Failed to prepare database")
+                        .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                        .status(Event.Status.FAILED)
+                        .exception(e, true)
+                        .toProto(processorEventId)
+                        .log(ArangoPersistor.LOGGER);
+                    throw e;
+                }
                 return processor
             }
         }

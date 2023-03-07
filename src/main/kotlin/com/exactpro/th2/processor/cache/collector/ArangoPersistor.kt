@@ -56,8 +56,7 @@ class ArangoPersistor: Persistor {
 
     private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
 
-
-    override fun prepareDatabase() {
+    internal fun prepareDatabase() {
         createDB()
         initCollections()
         initGraphs()

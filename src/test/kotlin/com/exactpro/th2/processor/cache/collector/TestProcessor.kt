@@ -36,11 +36,11 @@ class TestProcessor {
     private val processorEventIdMock = Mockito.mock(EventID::class.java)
     private val arangoCredentialsMock = Mockito.mock(ArangoCredentials::class.java)
     private val settings = Settings(arangoCredentialsMock)
-    private val arangoPersistor = Mockito.mock(ArangoPersistor::class.java)
+    private val persistor = Mockito.mock(Persistor::class.java)
 
     @BeforeEach
     fun init() {
-        processor = Processor(eventBatcherMock, processorEventIdMock, settings, arangoPersistor)
+        processor = Processor(eventBatcherMock, processorEventIdMock, settings, persistor)
     }
 
     private fun generateEvents(size: Int): MutableList<GrpcEvent> {
@@ -84,7 +84,7 @@ class TestProcessor {
         val list = generateEvents(100)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, times(1)).insertEvents(list.map { it.toCacheEvent() })
+        Mockito.verify(persistor, times(1)).insertEvents(list.map { it.toCacheEvent() })
     }
 
     @Test
@@ -92,7 +92,7 @@ class TestProcessor {
         val list = generateEvents(130)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, after(1100).times(2)).insertEvents(MockitoHelper.anyObject())
+        Mockito.verify(persistor, after(1100).times(2)).insertEvents(MockitoHelper.anyObject())
     }
 
     @Test
@@ -100,7 +100,7 @@ class TestProcessor {
         val list = generateRawMessages(100)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, times(1)).insertRawMessages(MockitoHelper.anyObject())
+        Mockito.verify(persistor, times(1)).insertRawMessages(MockitoHelper.anyObject())
     }
 
     @Test
@@ -108,7 +108,7 @@ class TestProcessor {
         val list = generateRawMessages(130)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, after(1100).times(2)).insertRawMessages(MockitoHelper.anyObject())
+        Mockito.verify(persistor, after(1100).times(2)).insertRawMessages(MockitoHelper.anyObject())
     }
 
     @Test
@@ -116,7 +116,7 @@ class TestProcessor {
         val list = generateParsedMessages(100)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, times(1)).insertParsedMessages(MockitoHelper.anyObject())
+        Mockito.verify(persistor, times(1)).insertParsedMessages(MockitoHelper.anyObject())
     }
 
     @Test
@@ -124,7 +124,7 @@ class TestProcessor {
         val list = generateParsedMessages(130)
 
         list.forEach { processor.handle(INTERVAL_EVENT_ID, it) }
-        Mockito.verify(arangoPersistor, after(1100).times(2)).insertParsedMessages(MockitoHelper.anyObject())
+        Mockito.verify(persistor, after(1100).times(2)).insertParsedMessages(MockitoHelper.anyObject())
     }
 
     object MockitoHelper {

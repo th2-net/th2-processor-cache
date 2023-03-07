@@ -16,7 +16,6 @@
 
 package com.exactpro.th2.processor.cache.collector
 
-import com.exactpro.th2.common.event.Event
 import com.exactpro.th2.common.grpc.EventID
 import com.exactpro.th2.common.utils.event.EventBatcher
 import com.exactpro.th2.common.utils.message.*
@@ -25,7 +24,6 @@ import com.exactpro.th2.processor.cache.collector.event.format
 import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
 import com.exactpro.th2.processor.cache.collector.message.format
 import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
-import com.exactpro.th2.processor.utility.log
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import mu.KotlinLogging
 import java.util.concurrent.Executors
@@ -58,28 +56,6 @@ class Processor(
     private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
         persistor.insertEvents(grpcToCacheEvents)
-    }
-
-    internal fun init() {
-        try {
-            persistor.prepareDatabase();
-            eventBatcher.onEvent(
-                EventBuilder.start()
-                    .name("Database prepared")
-                    .type(EVENT_TYPE_INIT_DATABASE)
-                    .toProto(processorEventId)
-                    .log(ArangoPersistor.LOGGER)
-            )
-        } catch (e: Exception) {
-            EventBuilder.start()
-                .name("Failed to prepare database")
-                .type(EVENT_TYPE_INIT_DATABASE)
-                .status(Event.Status.FAILED)
-                .exception(e, true)
-                .toProto(processorEventId)
-                .log(ArangoPersistor.LOGGER);
-            throw e;
-        }
     }
 
     var errors = 0;
