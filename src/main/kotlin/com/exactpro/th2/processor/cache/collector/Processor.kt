@@ -62,12 +62,6 @@ class Processor(
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
              eventBatch.onEvent(grpcEvent)
-//        if (event.attachedMessageIds !=null) {
-//            event.attachedMessageIds?.forEach { messageId ->
-//                // FIXME: maybe store as a batch
-//                storeEdge(event, messageId)
-//            }
-//        }
         } catch (e: Exception) {
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcEvent.id.format()}, current number of errors = $errors", e )

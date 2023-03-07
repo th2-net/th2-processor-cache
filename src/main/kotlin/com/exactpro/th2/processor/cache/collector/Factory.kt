@@ -45,33 +45,33 @@ class Factory : IProcessorFactory {
                     "Settings type mismatch expected: ${Settings::class}, actual: ${settings::class}"
                 }
                 val arangoPersistor = ArangoPersistor(settings)
-                val processor = Processor(
-                    eventBatcher,
-                    processorEventId,
-                    settings,
-                    arangoPersistor
-                )
-                try {
-                    arangoPersistor.prepareDatabase();
-                    eventBatcher.onEvent(
-                        EventBuilder.start()
-                            .name("Database prepared")
-                            .type(Processor.EVENT_TYPE_INIT_DATABASE)
-                            .toProto(processorEventId)
-                            .log(LOGGER)
-                    )
-                } catch (e: Exception) {
-                    EventBuilder.start()
-                        .name("Failed to prepare database")
-                        .type(Processor.EVENT_TYPE_INIT_DATABASE)
-                        .status(Event.Status.FAILED)
-                        .exception(e, true)
-                        .toProto(processorEventId)
-                        .log(LOGGER);
-                    throw e;
-                }
+                val processor = Processor(eventBatcher, processorEventId, settings, arangoPersistor)
+
+                prepareArango(context, arangoPersistor)
                 return processor
             }
+        }
+    }
+
+    private fun prepareArango(context: ProcessorContext, arangoPersistor : ArangoPersistor) {
+        try {
+            arangoPersistor.prepareDatabase();
+            context.eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Database prepared")
+                    .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                    .toProto(context.processorEventId)
+                    .log(LOGGER)
+            )
+        } catch (e: Exception) {
+            EventBuilder.start()
+                .name("Failed to prepare database")
+                .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                .status(Event.Status.FAILED)
+                .exception(e, true)
+                .toProto(context.processorEventId)
+                .log(LOGGER);
+            throw e;
         }
     }
 

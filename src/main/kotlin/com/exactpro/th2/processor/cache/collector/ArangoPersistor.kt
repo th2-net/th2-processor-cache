@@ -134,6 +134,7 @@ class ArangoPersistor: Persistor {
             )
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
@@ -142,6 +143,7 @@ class ArangoPersistor: Persistor {
             rawMessageCollection.insertDocuments(messages)
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
@@ -158,6 +160,7 @@ class ArangoPersistor: Persistor {
             )
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
