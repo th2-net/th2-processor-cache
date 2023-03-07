@@ -26,7 +26,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.*
 
-internal class ArangoPersisterTest {
+internal class ArangoPersistorTest {
 
     private val arangoDatabaseMock = mock(ArangoDatabase::class.java)
     private val arangoMock = mock(Arango::class.java)
@@ -49,7 +49,7 @@ internal class ArangoPersisterTest {
     fun prepareExistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(existingCollection)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, never()).drop()
@@ -60,7 +60,7 @@ internal class ArangoPersisterTest {
     fun recreateExistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(existingCollection)
 
-        val arangoPersistor = ArangoPersister(arangoMock, true)
+        val arangoPersistor = ArangoPersistor(arangoMock, true)
 
         arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, times(1)).drop()
@@ -72,7 +72,7 @@ internal class ArangoPersisterTest {
     fun prepareNonexistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(nonexistingCollection)
 
-        val arangoPersistor = ArangoPersister(arangoMock, true)
+        val arangoPersistor = ArangoPersistor(arangoMock, true)
 
         arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
@@ -83,7 +83,7 @@ internal class ArangoPersisterTest {
     fun recreateNonexistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(nonexistingCollection)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
@@ -94,7 +94,7 @@ internal class ArangoPersisterTest {
     fun createExistingDatabase() {
         `when`(arangoDatabaseMock.exists()).thenReturn(true)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.createDB()
         verify(arangoDatabaseMock, never()).create()
@@ -104,7 +104,7 @@ internal class ArangoPersisterTest {
     fun createNonexistingDatabase() {
         `when`(arangoDatabaseMock.exists()).thenReturn(false)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.createDB()
         verify(arangoDatabaseMock, times(1)).create()
@@ -114,7 +114,7 @@ internal class ArangoPersisterTest {
     fun prepareExistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()
@@ -125,7 +125,7 @@ internal class ArangoPersisterTest {
     fun recreateExistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
 
-        val arangoPersistor = ArangoPersister(arangoMock, true)
+        val arangoPersistor = ArangoPersistor(arangoMock, true)
 
         arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, times(1)).drop()
@@ -136,7 +136,7 @@ internal class ArangoPersisterTest {
     fun prepareNonexistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
 
-        val arangoPersistor = ArangoPersister(arangoMock, false)
+        val arangoPersistor = ArangoPersistor(arangoMock, false)
 
         arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()
@@ -147,7 +147,7 @@ internal class ArangoPersisterTest {
     fun recreateNonexistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
 
-        val arangoPersistor = ArangoPersister(arangoMock, true)
+        val arangoPersistor = ArangoPersistor(arangoMock, true)
 
         arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()

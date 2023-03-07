@@ -16,13 +16,13 @@
 
 package com.exactpro.th2.processor.cache.collector
 
-import com.arangodb.ArangoCollection
-import com.arangodb.entity.CollectionType
-import com.arangodb.entity.EdgeDefinition
+import com.exactpro.th2.cache.common.event.Event
+import com.exactpro.th2.cache.common.message.ParsedMessage
+import com.exactpro.th2.cache.common.message.RawMessage
 
-interface Persister {
-    fun createDB()
-
-    fun prepareCollection(name: String, type: CollectionType): ArangoCollection
-    fun initGraph(name: String, edgeDefinition: EdgeDefinition)
+interface Persistor {
+    fun prepareDatabase()
+    fun insertEvents(events: List<Event>)
+    fun insertParsedMessages(messages: List<ParsedMessage>)
+    fun insertRawMessages(messages: List<RawMessage>)
 }

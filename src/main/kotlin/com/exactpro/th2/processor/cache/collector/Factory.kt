@@ -46,7 +46,7 @@ class Factory : IProcessorFactory {
                     eventBatcher,
                     processorEventId,
                     settings,
-                    ArangoPersister(settings)
+                    ArangoPersistor(settings)
                 )
                 processor.init()
                 return processor

@@ -36,7 +36,7 @@ class TestProcessor {
     private val processorEventIdMock = Mockito.mock(EventID::class.java)
     private val arangoCredentialsMock = Mockito.mock(ArangoCredentials::class.java)
     private val settings = Settings(arangoCredentialsMock)
-    private val arangoPersistor = Mockito.mock(ArangoPersister::class.java)
+    private val arangoPersistor = Mockito.mock(ArangoPersistor::class.java)
 
     @BeforeEach
     fun init() {

@@ -29,7 +29,7 @@ import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import mu.KotlinLogging
 
-class ArangoPersister: Persister {
+class ArangoPersistor: Persistor {
     private val recreateCollections: Boolean
     private var arango: Arango
     private val database: ArangoDatabase
@@ -57,7 +57,7 @@ class ArangoPersister: Persister {
     private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
 
 
-    internal fun prepareDatabase() {
+    override fun prepareDatabase() {
         createDB()
         initCollections()
         initGraphs()
@@ -86,13 +86,13 @@ class ArangoPersister: Persister {
         initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
     }
 
-    override fun createDB() {
+    internal fun createDB() {
         if (!database.exists()) {
             database.create()
         }
     }
 
-    override fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
+    internal fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
         val graph = database.graph(name)
         var exists = graph.exists()
         if (exists && recreateCollections) {
@@ -106,7 +106,7 @@ class ArangoPersister: Persister {
         }
     }
 
-    override fun prepareCollection(name: String, type: CollectionType): ArangoCollection {
+    internal fun prepareCollection(name: String, type: CollectionType): ArangoCollection {
         val collection = database.collection(name)
         var exists = collection.exists()
         if (exists && recreateCollections) {
@@ -122,8 +122,7 @@ class ArangoPersister: Persister {
     }
 
 
-
-    internal fun insertParsedMessages(messages: List<ParsedMessage>) {
+    override fun insertParsedMessages(messages: List<ParsedMessage>) {
         try {
             parsedMessageCollection.insertDocuments(messages)
             parsedMessageRelationshipCollection.insertDocuments(messages.filter { el -> el.hasParentMessage() }
@@ -139,7 +138,7 @@ class ArangoPersister: Persister {
         }
     }
 
-    internal fun insertRawMessages(messages: List<RawMessage>) {
+    override fun insertRawMessages(messages: List<RawMessage>) {
         try {
             rawMessageCollection.insertDocuments(messages)
         } catch (e: Exception) {
@@ -147,7 +146,7 @@ class ArangoPersister: Persister {
         }
     }
 
-    internal fun insertEvents(events: List<com.exactpro.th2.cache.common.event.Event>) {
+    override fun insertEvents(events: List<com.exactpro.th2.cache.common.event.Event>) {
         try {
             eventCollection.insertDocuments(events)
             eventRelationshipCollection.insertDocuments(events.filter { el -> el.parentEventId != null }

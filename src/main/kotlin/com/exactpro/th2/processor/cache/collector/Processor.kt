@@ -39,7 +39,7 @@ class Processor(
     private val eventBatcher: EventBatcher,
     private val processorEventId: EventID,
     settings: Settings,
-    private val arangoPersistor: ArangoPersister
+    private val persistor: Persistor
 ) : IProcessor {
     private val maxBatchSize: Int = settings.maxBatchSize
     private val maxFlushTime: Long = settings.maxFlushTime
@@ -49,26 +49,26 @@ class Processor(
     )
     private val parsedMessageBatch = MessageBatcher(maxBatchSize, maxFlushTime, DIRECTION_SELECTOR, executor) {
         val grpcToParsedMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
-        arangoPersistor.insertParsedMessages(grpcToParsedMessages)
+        persistor.insertParsedMessages(grpcToParsedMessages)
     }
     private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
         val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
-        arangoPersistor.insertRawMessages(grpcToRawMessages)
+        persistor.insertRawMessages(grpcToRawMessages)
     }
     private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
         val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
-        arangoPersistor.insertEvents(grpcToCacheEvents)
+        persistor.insertEvents(grpcToCacheEvents)
     }
 
     internal fun init() {
         try {
-            arangoPersistor.prepareDatabase();
+            persistor.prepareDatabase();
             eventBatcher.onEvent(
                 EventBuilder.start()
                     .name("Database prepared")
                     .type(EVENT_TYPE_INIT_DATABASE)
                     .toProto(processorEventId)
-                    .log(ArangoPersister.LOGGER)
+                    .log(ArangoPersistor.LOGGER)
             )
         } catch (e: Exception) {
             EventBuilder.start()
@@ -77,7 +77,7 @@ class Processor(
                 .status(Event.Status.FAILED)
                 .exception(e, true)
                 .toProto(processorEventId)
-                .log(ArangoPersister.LOGGER);
+                .log(ArangoPersistor.LOGGER);
             throw e;
         }
     }
