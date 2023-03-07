@@ -48,16 +48,54 @@ class Processor(
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
     private val parsedMessageBatch = MessageBatcher(maxBatchSize, maxFlushTime, DIRECTION_SELECTOR, executor) {
-        val grpcToParsedMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
-        persistor.insertParsedMessages(grpcToParsedMessages)
+        try {
+            val grpcToParsedMessages =
+                it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
+            persistor.insertParsedMessages(grpcToParsedMessages)
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to insert parsed message")
+                    .type(EVENT_TYPE_INSERT_PARSED_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        }
     }
     private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
-        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
-        persistor.insertRawMessages(grpcToRawMessages)
+        try {
+            val grpcToRawMessages =
+                it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
+            persistor.insertRawMessages(grpcToRawMessages)
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to insert raw message")
+                    .type(EVENT_TYPE_INSERT_RAW_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        }
     }
     private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
-        val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
-        persistor.insertEvents(grpcToCacheEvents)
+        try {
+            val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
+            persistor.insertEvents(grpcToCacheEvents)
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to insert event")
+                    .type(EVENT_TYPE_INSERT_EVENT)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        }
     }
 
     var errors = 0;
@@ -121,5 +159,8 @@ class Processor(
         const val EVENT_TYPE_HANDLE_EVENT: String = "Handle event"
         const val EVENT_TYPE_HANDLE_PARSED_MESSAGE: String = "Handle parsed message"
         const val EVENT_TYPE_HANDLE_RAW_MESSAGE: String = "Handle raw message"
+        const val EVENT_TYPE_INSERT_EVENT: String = "Insert event"
+        const val EVENT_TYPE_INSERT_PARSED_MESSAGE: String = "Insert parsed message"
+        const val EVENT_TYPE_INSERT_RAW_MESSAGE: String = "Insert raw message"
     }
 }
