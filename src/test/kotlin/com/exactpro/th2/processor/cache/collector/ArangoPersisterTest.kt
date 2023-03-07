@@ -22,21 +22,11 @@ import com.arangodb.ArangoGraph
 import com.arangodb.entity.CollectionType
 import com.arangodb.entity.EdgeDefinition
 import com.exactpro.th2.cache.common.Arango
-import com.exactpro.th2.cache.common.ArangoCredentials
-import com.exactpro.th2.common.grpc.*
-import com.exactpro.th2.common.utils.event.EventBatcher
-import com.exactpro.th2.common.utils.message.toTimestamp
-import com.exactpro.th2.processor.cache.collector.event.toCacheEvent
-import com.exactpro.th2.processor.cache.collector.message.toCacheMessage
-import com.google.protobuf.ByteString
-import com.google.protobuf.Timestamp
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.mockito.Mockito
 import org.mockito.Mockito.*
-import java.time.Instant
 
-internal class ArangoDBTest {
+internal class ArangoPersisterTest {
 
     private val arangoDatabaseMock = mock(ArangoDatabase::class.java)
     private val arangoMock = mock(Arango::class.java)
@@ -59,9 +49,9 @@ internal class ArangoDBTest {
     fun prepareExistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(existingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
+        arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, never()).drop()
         verify(arangoDatabaseMock, never()).createCollection(eq(name), any())
     }
@@ -70,9 +60,9 @@ internal class ArangoDBTest {
     fun recreateExistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(existingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoPersistor = ArangoPersister(arangoMock, true)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
+        arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(existingCollection, times(1)).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
@@ -82,9 +72,9 @@ internal class ArangoDBTest {
     fun prepareNonexistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(nonexistingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoPersistor = ArangoPersister(arangoMock, true)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
+        arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
@@ -93,9 +83,9 @@ internal class ArangoDBTest {
     fun recreateNonexistingCollection() {
         `when`(arangoDatabaseMock.collection(eq(name))).thenReturn(nonexistingCollection)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.prepareCollection(name, CollectionType.DOCUMENT)
+        arangoPersistor.prepareCollection(name, CollectionType.DOCUMENT)
         verify(nonexistingCollection, never()).drop()
         verify(arangoDatabaseMock, times(1)).createCollection(eq(name), any())
     }
@@ -104,9 +94,9 @@ internal class ArangoDBTest {
     fun createExistingDatabase() {
         `when`(arangoDatabaseMock.exists()).thenReturn(true)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.createDB()
+        arangoPersistor.createDB()
         verify(arangoDatabaseMock, never()).create()
     }
 
@@ -114,9 +104,9 @@ internal class ArangoDBTest {
     fun createNonexistingDatabase() {
         `when`(arangoDatabaseMock.exists()).thenReturn(false)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.createDB()
+        arangoPersistor.createDB()
         verify(arangoDatabaseMock, times(1)).create()
     }
 
@@ -124,9 +114,9 @@ internal class ArangoDBTest {
     fun prepareExistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.initGraph(name, EdgeDefinition())
+        arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()
         verify(arangoDatabaseMock, never()).createGraph(name, listOf(), null)
     }
@@ -135,9 +125,9 @@ internal class ArangoDBTest {
     fun recreateExistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(existingGraph)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoPersistor = ArangoPersister(arangoMock, true)
 
-        arangoDb.initGraph(name, EdgeDefinition())
+        arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, times(1)).drop()
         verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
     }
@@ -146,9 +136,9 @@ internal class ArangoDBTest {
     fun prepareNonexistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
 
-        val arangoDb = ArangoDB(arangoMock, false)
+        val arangoPersistor = ArangoPersister(arangoMock, false)
 
-        arangoDb.initGraph(name, EdgeDefinition())
+        arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()
         verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
     }
@@ -157,9 +147,9 @@ internal class ArangoDBTest {
     fun recreateNonexistingGraph() {
         `when`(arangoDatabaseMock.graph(eq(name))).thenReturn(nonexistingGraph)
 
-        val arangoDb = ArangoDB(arangoMock, true)
+        val arangoPersistor = ArangoPersister(arangoMock, true)
 
-        arangoDb.initGraph(name, EdgeDefinition())
+        arangoPersistor.initGraph(name, EdgeDefinition())
         verify(existingGraph, never()).drop()
         verify(arangoDatabaseMock, times(1)).createGraph(eq(name), any(), any())
     }

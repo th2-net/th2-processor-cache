@@ -29,7 +29,7 @@ import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import mu.KotlinLogging
 
-class ArangoDB {
+class ArangoPersister: Persister {
     private val recreateCollections: Boolean
     private var arango: Arango
     private val database: ArangoDatabase
@@ -86,13 +86,13 @@ class ArangoDB {
         initGraph(Arango.MESSAGE_GRAPH, messageGraphEdgeDefinition)
     }
 
-    internal fun createDB() {
+    override fun createDB() {
         if (!database.exists()) {
             database.create()
         }
     }
 
-    internal fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
+    override fun initGraph(name: String, edgeDefinition: EdgeDefinition) {
         val graph = database.graph(name)
         var exists = graph.exists()
         if (exists && recreateCollections) {
@@ -106,7 +106,7 @@ class ArangoDB {
         }
     }
 
-    internal fun prepareCollection(name: String, type: CollectionType):ArangoCollection {
+    override fun prepareCollection(name: String, type: CollectionType): ArangoCollection {
         val collection = database.collection(name)
         var exists = collection.exists()
         if (exists && recreateCollections) {
