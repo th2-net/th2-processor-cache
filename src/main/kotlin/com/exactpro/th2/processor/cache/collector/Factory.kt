@@ -20,9 +20,11 @@ import com.exactpro.th2.processor.api.IProcessor
 import com.exactpro.th2.processor.api.IProcessorFactory
 import com.exactpro.th2.processor.api.IProcessorSettings
 import com.exactpro.th2.processor.api.ProcessorContext
+import com.exactpro.th2.processor.utility.log
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.google.auto.service.AutoService
+import mu.KotlinLogging
 import java.time.Instant
 
 @Suppress("unused")
@@ -42,15 +44,34 @@ class Factory : IProcessorFactory {
                 check(settings is Settings) {
                     "Settings type mismatch expected: ${Settings::class}, actual: ${settings::class}"
                 }
-                val processor = Processor(
-                    eventBatcher,
-                    processorEventId,
-                    settings,
-                    ArangoDB(settings)
-                )
-                processor.init()
+                val arangoPersistor = ArangoPersistor(settings)
+                val processor = Processor(eventBatcher, processorEventId, settings, arangoPersistor)
+
+                prepareArango(context, arangoPersistor)
                 return processor
             }
+        }
+    }
+
+    private fun prepareArango(context: ProcessorContext, arangoPersistor : ArangoPersistor) {
+        try {
+            arangoPersistor.prepareDatabase();
+            context.eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Database prepared")
+                    .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                    .toProto(context.processorEventId)
+                    .log(LOGGER)
+            )
+        } catch (e: Exception) {
+            EventBuilder.start()
+                .name("Failed to prepare database")
+                .type(Processor.EVENT_TYPE_INIT_DATABASE)
+                .status(Event.Status.FAILED)
+                .exception(e, true)
+                .toProto(context.processorEventId)
+                .log(LOGGER);
+            throw e;
         }
     }
 
@@ -58,4 +79,8 @@ class Factory : IProcessorFactory {
         .name("Healer event data processor ${Instant.now()}")
         .description("Will contain all events with errors and information about processed events")
         .type("Microservice")
+
+    companion object {
+        private val LOGGER = KotlinLogging.logger {}
+    }
 }

@@ -29,7 +29,7 @@ import com.exactpro.th2.processor.cache.collector.message.getParentMessageId
 import com.exactpro.th2.processor.cache.collector.message.hasParentMessage
 import mu.KotlinLogging
 
-class ArangoDB {
+class ArangoPersistor: Persistor {
     private val recreateCollections: Boolean
     private var arango: Arango
     private val database: ArangoDatabase
@@ -55,7 +55,6 @@ class ArangoDB {
     private fun getEventKey(eventId : String): String = Arango.EVENT_COLLECTION + "/" + eventId
 
     private fun getMessageKey(messageId: String): String = Arango.PARSED_MESSAGE_COLLECTION + "/" + messageId
-
 
     internal fun prepareDatabase() {
         createDB()
@@ -106,7 +105,7 @@ class ArangoDB {
         }
     }
 
-    internal fun prepareCollection(name: String, type: CollectionType):ArangoCollection {
+    internal fun prepareCollection(name: String, type: CollectionType): ArangoCollection {
         val collection = database.collection(name)
         var exists = collection.exists()
         if (exists && recreateCollections) {
@@ -122,8 +121,7 @@ class ArangoDB {
     }
 
 
-
-    internal fun insertParsedMessages(messages: List<ParsedMessage>) {
+    override fun insertParsedMessages(messages: List<ParsedMessage>) {
         try {
             parsedMessageCollection.insertDocuments(messages)
             parsedMessageRelationshipCollection.insertDocuments(messages.filter { el -> el.hasParentMessage() }
@@ -136,18 +134,20 @@ class ArangoDB {
             )
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
-    internal fun insertRawMessages(messages: List<RawMessage>) {
+    override fun insertRawMessages(messages: List<RawMessage>) {
         try {
             rawMessageCollection.insertDocuments(messages)
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
-    internal fun insertEvents(events: List<com.exactpro.th2.cache.common.event.Event>) {
+    override fun insertEvents(events: List<com.exactpro.th2.cache.common.event.Event>) {
         try {
             eventCollection.insertDocuments(events)
             eventRelationshipCollection.insertDocuments(events.filter { el -> el.parentEventId != null }
@@ -160,10 +160,11 @@ class ArangoDB {
             )
         } catch (e: Exception) {
             LOGGER.error { "${e.message}" }
+            throw e
         }
     }
 
     companion object {
-        val LOGGER = KotlinLogging.logger {}
+        private val LOGGER = KotlinLogging.logger {}
     }
 }

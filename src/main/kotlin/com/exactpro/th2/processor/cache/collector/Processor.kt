@@ -39,7 +39,7 @@ class Processor(
     private val eventBatcher: EventBatcher,
     private val processorEventId: EventID,
     settings: Settings,
-    private val arangoDB: ArangoDB
+    private val persistor: Persistor
 ) : IProcessor {
     private val maxBatchSize: Int = settings.maxBatchSize
     private val maxFlushTime: Long = settings.maxFlushTime
@@ -48,37 +48,53 @@ class Processor(
         ThreadFactoryBuilder().setNameFormat("processor-cache-%d").build()
     )
     private val parsedMessageBatch = MessageBatcher(maxBatchSize, maxFlushTime, DIRECTION_SELECTOR, executor) {
-        val grpcToParsedMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
-        arangoDB.insertParsedMessages(grpcToParsedMessages)
-    }
-    private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
-        val grpcToRawMessages = it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
-        arangoDB.insertRawMessages(grpcToRawMessages)
-    }
-    private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
-        val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
-        arangoDB.insertEvents(grpcToCacheEvents)
-    }
-
-    internal fun init() {
         try {
-            arangoDB.prepareDatabase();
+            val grpcToParsedMessages =
+                it.groupsList.map { group -> group.messagesList.map { el -> el.message.toCacheMessage() } }.flatten()
+            persistor.insertParsedMessages(grpcToParsedMessages)
+        } catch (e: Exception) {
             eventBatcher.onEvent(
                 EventBuilder.start()
-                    .name("Database prepared")
-                    .type(EVENT_TYPE_INIT_DATABASE)
+                    .name("Failed to insert parsed message")
+                    .type(EVENT_TYPE_INSERT_PARSED_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
                     .toProto(processorEventId)
-                    .log(ArangoDB.LOGGER)
+                    .log(K_LOGGER)
             )
+        }
+    }
+    private val rawMessageBatch = RawMessageBatcher(maxBatchSize, maxFlushTime, RAW_DIRECTION_SELECTOR, executor) {
+        try {
+            val grpcToRawMessages =
+                it.groupsList.map { group -> group.messagesList.map { el -> el.rawMessage.toCacheMessage() } }.flatten()
+            persistor.insertRawMessages(grpcToRawMessages)
         } catch (e: Exception) {
-            EventBuilder.start()
-                .name("Failed to prepare database")
-                .type(EVENT_TYPE_INIT_DATABASE)
-                .status(Event.Status.FAILED)
-                .exception(e, true)
-                .toProto(processorEventId)
-                .log(ArangoDB.LOGGER);
-            throw e;
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to insert raw message")
+                    .type(EVENT_TYPE_INSERT_RAW_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
+        }
+    }
+    private val eventBatch = EventBatcher(maxBatchSize, maxFlushTime, executor) {
+        try {
+            val grpcToCacheEvents = it.eventsList.map { el -> el.toCacheEvent() }
+            persistor.insertEvents(grpcToCacheEvents)
+        } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to insert event")
+                    .type(EVENT_TYPE_INSERT_EVENT)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
         }
     }
 
@@ -86,13 +102,16 @@ class Processor(
     override fun handle(intervalEventId: EventID, grpcEvent: GrpcEvent) {
         try {
              eventBatch.onEvent(grpcEvent)
-//        if (event.attachedMessageIds !=null) {
-//            event.attachedMessageIds?.forEach { messageId ->
-//                // FIXME: maybe store as a batch
-//                storeEdge(event, messageId)
-//            }
-//        }
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle event")
+                    .type(EVENT_TYPE_HANDLE_EVENT)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling event ${grpcEvent.id.format()}, current number of errors = $errors", e )
         }
@@ -102,6 +121,15 @@ class Processor(
         try {
             parsedMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle parsed message")
+                    .type(EVENT_TYPE_HANDLE_PARSED_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling parsed message ${grpcMessage.id.format()}, current number of errors = $errors", e )
         }
@@ -111,13 +139,28 @@ class Processor(
         try {
             rawMessageBatch.onMessage(grpcMessage.toBuilder())
         } catch (e: Exception) {
+            eventBatcher.onEvent(
+                EventBuilder.start()
+                    .name("Failed to handle raw message")
+                    .type(EVENT_TYPE_HANDLE_RAW_MESSAGE)
+                    .status(Event.Status.FAILED)
+                    .exception(e, true)
+                    .toProto(processorEventId)
+                    .log(K_LOGGER)
+            )
             errors++
             K_LOGGER.error ( "Exception handling raw message ${grpcMessage.id.format()}, current number of errors = $errors", e )
         }
     }
 
     companion object {
-        val K_LOGGER = KotlinLogging.logger {}
+        private val K_LOGGER = KotlinLogging.logger {}
         const val EVENT_TYPE_INIT_DATABASE: String = "Init Arango database"
+        const val EVENT_TYPE_HANDLE_EVENT: String = "Handle event"
+        const val EVENT_TYPE_HANDLE_PARSED_MESSAGE: String = "Handle parsed message"
+        const val EVENT_TYPE_HANDLE_RAW_MESSAGE: String = "Handle raw message"
+        const val EVENT_TYPE_INSERT_EVENT: String = "Insert event"
+        const val EVENT_TYPE_INSERT_PARSED_MESSAGE: String = "Insert parsed message"
+        const val EVENT_TYPE_INSERT_RAW_MESSAGE: String = "Insert raw message"
     }
 }
